@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>航司显示调试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        h3 { margin-top: 0; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>🔍 航司显示调试</h1>
+    
+    <div class="section">
+        <h3>1. AIRLINE_NAMES 映射</h3>
+        <div id="airlineNamesResult">检查中...</div>
+    </div>
+    
+    <div class="section">
+        <h3>2. API 航司列表</h3>
+        <div id="apiResult">检查中...</div>
+    </div>
+    
+    <div class="section">
+        <h3>3. 航司下拉框</h3>
+        <div id="dropdownResult">检查中...</div>
+    </div>
+    
+    <div class="section">
+        <h3>4. 模拟航司选择</h3>
+        <select id="airlineSelect" style="padding: 8px; margin: 10px 0;">
+            <option value="">选择航司...</option>
+        </select>
+        <div id="selectResult"></div>
+    </div>
+
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script>
+        // 从当前页面获取 AIRLINE_NAMES
+        fetch(window.location.href)
+            .then(r => r.text())
+            .then(html => {
+                // 提取 AIRLINE_NAMES
+                const match = html.match(/const AIRLINE_NAMES = \{([^}]+)\}/);
+                if (match) {
+                    const airlinesStr = match[1];
+                    const airlineMatches = airlinesStr.match(/'([A-Z0-9]+)':\s*'([^']+)'/g);
+                    
+                    const namesDiv = document.getElementById('airlineNamesResult');
+                    namesDiv.innerHTML = `
+                        <p class="success">找到 ${airlineMatches.length} 个航司映射</p>
+                        <pre>${airlineMatches.slice(0, 10).join('\n')}${airlineMatches.length > 10 ? '\n...' : ''}</pre>
+                    `;
+                    
+                    // 填充下拉框
+                    const select = document.getElementById('airlineSelect');
+                    airlineMatches.forEach(m => {
+                        const [, code, name] = m.match(/'([A-Z0-9]+)':\s*'([^']+)'/);
+                        const option = document.createElement('option');
+                        option.value = code;
+                        option.textContent = `${code} - ${name}`;
+                        select.appendChild(option);
+                    });
+                    
+                    select.addEventListener('change', function() {
+                        const selected = this.options[this.selectedIndex];
+                        document.getElementById('selectResult').innerHTML = `
+                            <p class="success">选择: ${selected.textContent}</p>
+                        `;
+                    });
+                } else {
+                    document.getElementById('airlineNamesResult').innerHTML = '<p class="error">未找到 AIRLINE_NAMES</p>';
+                }
+                
+                // 检查下拉框 HTML
+                const dropdownMatch = html.match(/<ul[^>]*id="airlineDropdownList"[^>]*>/);
+                const dropdownDiv = document.getElementById('dropdownResult');
+                if (dropdownMatch) {
+                    dropdownDiv.innerHTML = `<p class="success">找到航司下拉框元素</p>`;
+                } else {
+                    dropdownDiv.innerHTML = `<p class="error">未找到航司下拉框元素</p>`;
+                }
+            });
+
+        // 测试 API（如果已登录）
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+        const apiDiv = document.getElementById('apiResult');
+        
+        if (token) {
+            fetch('/api/airlines', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const airlines = data.data.airlines || [];
+                        apiDiv.innerHTML = `
+                            <p class="success">API 返回 ${airlines.length} 个航司</p>
+                            <pre>前5个航司:</pre>
+                            <pre>${JSON.stringify(airlines.slice(0, 5), null, 2)}</pre>
+                        `;
+                    } else {
+                        apiDiv.innerHTML = `<p class="error">API 错误: ${data.message}</p>`;
+                    }
+                })
+                .catch(e => {
+                    apiDiv.innerHTML = `<p class="error">API 请求失败: ${e.message}</p>`;
+                });
+        } else {
+            apiDiv.innerHTML = `<p class="error">未登录，无法访问 API</p>`;
+        }
+    </script>
+</body>
+</html>

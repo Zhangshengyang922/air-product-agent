@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航空公司产品智能体</title>
+    <!-- Element UI -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        #app { min-height: 100vh; }
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-box { background: white; border-radius: 8px; padding: 40px; width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .login-title { font-size: 24px; text-align: center; margin-bottom: 30px; color: #333; }
+        .main-container { min-height: 100vh; padding: 20px; }
+        .main-content { max-width: 1600px; margin: 0 auto; }
+        .content-header { background: white; padding: 20px; border-radius: 4px; margin-bottom: 15px; }
+        .header-title { font-size: 18px; font-weight: bold; color: #303133; margin-bottom: 15px; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .filter-row .el-select, .filter-row .el-input { width: 150px; }
+        .data-panel { background: white; padding: 10px; border-radius: 4px; }
+        .upload-btn { display: inline-block; padding: 10px 20px; background: #409eff; color: white; border-radius: 4px; font-size: 13px; text-decoration: none; }
+        .tag-price { background: #409eff; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
+        .el-table { font-size: 12px; }
+        .el-table .cell { white-space: normal; line-height: 1.3; padding: 0 5px; }
+        .el-table th { padding: 6px 0; background: #f5f7fa; height: 36px; }
+        .el-table td { padding: 4px 0; height: 36px; }
+        .el-table th .cell, .el-table td .cell { line-height: 1.3; }
+        .tag-type { padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+        .tag-type.ALL { background: #e6a23c; color: white; }
+        .tag-type.GP { background: #67c23a; color: white; }
+        .tag-type.BSP { background: #909399; color: white; }
+        .tag-type.B2B { background: #f56c6c; color: white; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录页 -->
+        <div v-if="!isLoggedIn" class="login-container">
+            <div class="login-box">
+                <div class="login-title">✈️ 航空公司产品系统</div>
+                <el-form @submit.native.prevent="handleLogin">
+                    <el-form-item>
+                        <el-input v-model="loginForm.username" placeholder="账号" prefix-icon="el-icon-user"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-input v-model="loginForm.password" type="password" placeholder="密码" prefix-icon="el-icon-lock" @keyup.enter.native="handleLogin"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" style="width:100%" :loading="loginLoading" @click="handleLogin">登 录</el-button>
+                    </el-form-item>
+                    <div v-if="loginError" style="color:#f56c6c;text-align:center;font-size:13px">{{loginError}}</div>
+                </el-form>
+            </div>
+        </div>
+
+        <!-- 主界面 -->
+        <div v-else class="main-container">
+            <div class="main-content">
+                <div class="content-header">
+                    <div class="header-row">
+                        <div class="header-title">
+                            {{selectedAirline ? getAirlineName(selectedAirline) + ' 产品' : '全部产品'}}
+                            <span style="font-size:14px;color:#909399;font-weight:normal">({{products.length}}条)</span>
+                        </div>
+                        <a href="/upload.html" class="upload-btn">📤 上传产品</a>
+                    </div>
+                    <div class="filter-row">
+                        <el-select v-model="selectedAirline" placeholder="选择航空公司" clearable size="small" filterable>
+                            <el-option label="全部航司" value=""></el-option>
+                            <el-option v-for="airline in allAirlines" :key="airline.code" :label="`${airline.code} - ${getAirlineName(airline.code)}`" :value="airline.code"></el-option>
+                        </el-select>
+                        <el-select v-model="filterTicketType" placeholder="票证类型" clearable size="small" filterable>
+                            <el-option label="全部" value=""></el-option>
+                            <el-option label="所有" value="ALL"></el-option>
+                            <el-option label="GP" value="GP"></el-option>
+                            <el-option label="BSP" value="BSP"></el-option>
+                            <el-option label="B2B" value="B2B"></el-option>
+                        </el-select>
+                        <el-select v-model="filterProductType" placeholder="产品类型" clearable size="small" filterable>
+                            <el-option label="全部类型" value=""></el-option>
+                            <el-option label="常规产品" value="常规产品"></el-option>
+                            <el-option label="贵宾室服务" value="贵宾室服务"></el-option>
+                            <el-option label="变更服务" value="变更服务"></el-option>
+                            <el-option label="伴手礼服务" value="伴手礼服务"></el-option>
+                        </el-select>
+                        <el-select v-model="filterOffice" placeholder="Office号" clearable size="small" filterable>
+                            <el-option label="全部Office" value=""></el-option>
+                            <el-option v-for="office in officeList" :key="office" :label="office" :value="office"></el-option>
+                        </el-select>
+                        <el-input v-model="searchText" placeholder="搜索产品" prefix-icon="el-icon-search" style="width:180px" size="small" clearable></el-input>
+                    </div>
+                </div>
+
+                <div class="data-panel">
+                    <el-table :data="filteredProducts" border style="width:100%" stripe :cell-style="{padding:'3px'}" :header-cell-style="{padding:'3px',background:'#f5f7fa',height:'32px'}" :row-style="{height:'32px'}" size="mini">
+                        <el-table-column prop="product_name" label="产品名称" min-width="120"></el-table-column>
+                        <el-table-column prop="policy_code" label="政策代码" min-width="100" align="center">
+                            <template slot-scope="scope">
+                                <span class="tag-price">{{scope.row.policy_code || '-'}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="price_increase" label="价格" width="60" align="right">
+                            <template slot-scope="scope">
+                                ¥{{scope.row.price_increase || 0}}
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="rebate_ratio" label="后返" width="60" align="center"></el-table-column>
+                        <el-table-column prop="route" label="航线" min-width="90"></el-table-column>
+                        <el-table-column prop="booking_class" label="订座舱位" min-width="110"></el-table-column>
+                        <el-table-column prop="remarks" label="备注" min-width="90"></el-table-column>
+                        <el-table-column prop="office" label="Office" min-width="110"></el-table-column>
+                        <el-table-column prop="valid_period" label="有效期" min-width="90"></el-table-column>
+                    </el-table>
+                    <el-empty v-if="filteredProducts.length===0" description="暂无数据"></el-empty>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vue & Element UI -->
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script>
+        const API_BASE = '';
+        const AIRLINE_NAMES = {
+            'CA': '中国国际航空', 'MU': '中国东方航空', 'CZ': '中国南方航空', 'HU': '海南航空',
+            'FM': '上海航空', 'MF': '厦门航空', 'SC': '山东航空', 'ZH': '深圳航空',
+            '3U': '四川航空', 'KY': '昆明航空', 'BK': '奥凯航空', 'CN': '大新华航空',
+            'EU': '成都航空', 'G5': '华夏航空', 'GS': '天津航空', 'HO': '吉祥航空',
+            'JD': '首都航空', 'JR': '幸福航空', 'KN': '中国联合航空', 'NS': '河北航空',
+            'OQ': '重庆航空', 'QW': '青岛航空', 'RY': '江西航空', 'TV': '西藏航空',
+            'UQ': '乌鲁木齐航空', 'PN': '西部航空', '8L': '祥鹏航空', '9H': '长安航空',
+            'A6': '湖南航空', 'DR': '瑞丽航空', 'FU': '福州航空', 'GJ': '长龙航空',
+            'GX': '北部湾航空', 'DZ': '东海航空', 'LT': '龙江航空', 'GY': '多彩贵州'
+        };
+
+        new Vue({
+            el: '#app',
+            data: {
+                isLoggedIn: false,
+                loginForm: { username: '', password: '' },
+                loginLoading: false,
+                loginError: '',
+                allAirlines: [],
+                selectedAirline: '',
+                products: [],
+                filterTicketType: '',
+                filterProductType: '',
+                filterOffice: '',
+                searchText: '',
+                officeList: ['KMG319', 'CTU152', 'SZX146', 'KMG279']
+            },
+            computed: {
+                filteredProducts() {
+                    let list = this.products;
+                    if (this.filterTicketType) {
+                        list = list.filter(p => (p.ticket_type||'').toUpperCase() === this.filterTicketType);
+                    }
+                    if (this.filterProductType) {
+                        list = list.filter(p => this.getProductType(p) === this.filterProductType);
+                    }
+                    if (this.filterOffice) {
+                        list = list.filter(p => (p.office||'').includes(this.filterOffice));
+                    }
+                    if (this.searchText) {
+                        const s = this.searchText.toLowerCase();
+                        list = list.filter(p => 
+                            (p.product_name||'').toLowerCase().includes(s) ||
+                            (p.route||'').toLowerCase().includes(s) ||
+                            (p.policy_code||'').toLowerCase().includes(s)
+                        );
+                    }
+                    return list;
+                }
+            },
+            watch: {
+                selectedAirline() {
+                    this.loadProducts();
+                }
+            },
+            mounted() {
+                this.checkAuth();
+            },
+            methods: {
+                checkAuth() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    let token = urlParams.get('token');
+                    if (token) {
+                        localStorage.setItem('auth_token', token);
+                        window.history.replaceState({}, document.title, '/');
+                    } else {
+                        token = localStorage.getItem('auth_token');
+                    }
+                    if (token) {
+                        this.isLoggedIn = true;
+                        this.loadAirlines();
+                    }
+                },
+                getAuthHeader() {
+                    const token = localStorage.getItem('auth_token');
+                    return token ? { 'Authorization': `Bearer ${token}` } : {};
+                },
+                handleLogout() {
+                    localStorage.removeItem('auth_token');
+                    this.isLoggedIn = false;
+                },
+                async handleLogin() {
+                    if (!this.loginForm.username || !this.loginForm.password) return;
+                    this.loginLoading = true;
+                    this.loginError = '';
+                    try {
+                        const resp = await fetch(`${API_BASE}/api/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.loginForm)
+                        });
+                        const data = await resp.json();
+                        if (data.success) {
+                            localStorage.setItem('auth_token', data.token);
+                            this.isLoggedIn = true;
+                            await this.loadAirlines();
+                            await this.loadProducts();
+                        } else {
+                            this.loginError = data.message || '账号或密码错误';
+                        }
+                    } catch (e) {
+                        this.loginError = '网络错误';
+                        console.error('Login error:', e);
+                    } finally {
+                        this.loginLoading = false;
+                    }
+                },
+                getAirlineName(code) {
+                    return AIRLINE_NAMES[code] || code;
+                },
+                async loadAirlines() {
+                    try {
+                        const resp = await fetch(`${API_BASE}/api/airlines`, { headers: this.getAuthHeader() });
+                        const data = await resp.json();
+                        if (data.success) this.allAirlines = data.data.airlines || [];
+                    } catch (e) {
+                        console.error('Failed to load airlines:', e);
+                        this.allAirlines = [];
+                    }
+                },
+                async loadProducts() {
+                    try {
+                        let url = `${API_BASE}/api/products`;
+                        if (this.selectedAirline) {
+                            url = `${API_BASE}/api/airlines/${this.selectedAirline}`;
+                        }
+                        console.log('Loading products from:', url);
+                        const resp = await fetch(url, { headers: this.getAuthHeader() });
+                        const data = await resp.json();
+                        console.log('Response:', data);
+                        if (data.success) {
+                            this.products = data.data.products || [];
+                            console.log('Products loaded:', this.products.length);
+                        }
+                    } catch (e) {
+                        console.error('Failed to load products:', e);
+                        this.products = [];
+                    }
+                },
+                getProductType(product) {
+                    const name = (product.product_name||'').toLowerCase();
+                    if (name.includes('贵宾室')) return '贵宾室服务';
+                    if (name.includes('变更')||name.includes('改期')) return '变更服务';
+                    if (name.includes('伴手礼')) return '伴手礼服务';
+                    return '常规产品';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
