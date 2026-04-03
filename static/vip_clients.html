@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大客户政策 - 航空公司产品系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        #app { min-height: 100vh; }
+        .header-container { background: linear-gradient(135deg, #409eff 0%, #67c23a 100%); color: white; padding: 20px; }
+        .header-content { max-width: 1600px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { font-size: 22px; font-weight: bold; }
+        .header-subtitle { font-size: 13px; opacity: 0.9; margin-top: 5px; }
+        .header-actions a { color: white; text-decoration: none; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-left: 10px; }
+        .header-actions a:hover { background: rgba(255,255,255,0.3); }
+        .main-container { max-width: 1600px; margin: 20px auto; padding: 0 20px; }
+        .filter-section { background: white; padding: 20px; border-radius: 4px; margin-bottom: 15px; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .airline-tabs { margin-bottom: 20px; }
+        .airline-tabs .el-tabs__header { margin-bottom: 0; }
+        .data-card { background: white; padding: 20px; border-radius: 4px; }
+        .table-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: #606266; font-size: 13px; }
+        .highlight-row { background: #fffbe6 !important; }
+        .expired-tag { color: #909399; font-size: 11px; }
+        .valid-tag { color: #67c23a; font-size: 11px; }
+        .status-tag { padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+        .status-tag.active { background: #67c23a; color: white; }
+        .status-tag.expired { background: #909399; color: white; }
+        .policy-code { background: #409eff; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #909399; }
+        .el-table { font-size: 12px; }
+        .el-table .cell { white-space: normal; line-height: 1.4; padding: 4px 8px; }
+        .el-table th { padding: 8px 0; background: #f5f7fa; }
+        .el-table td { padding: 6px 0; }
+        .back-link { color: white; text-decoration: none; margin-right: 15px; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header-container">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">🏢 大客户政策查询</div>
+                    <div class="header-subtitle">国航 / 川航 / 南航 大客户汇总</div>
+                </div>
+                <div class="header-actions">
+                    <a href="/index.html">📦 返回产品页</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="filter-section">
+                <div class="filter-row">
+                    <el-select v-model="selectedAirline" placeholder="选择航司" size="small" style="width:150px" @change="onAirlineChange">
+                        <el-option label="全部航司" value=""></el-option>
+                        <el-option label="🇨🇳 国航" value="国航"></el-option>
+                        <el-option label="🦁 川航" value="川航"></el-option>
+                        <el-option label="🛫 南航" value="南航"></el-option>
+                    </el-select>
+                    <el-select v-model="filterTicketType" placeholder="票证类型" clearable size="small" style="width:130px">
+                        <el-option label="全部" value=""></el-option>
+                        <el-option label="BSP" value="BSP"></el-option>
+                        <el-option label="GP" value="GP"></el-option>
+                    </el-select>
+                    <el-input v-model="searchText" placeholder="搜索客户名称" prefix-icon="el-icon-search" style="width:200px" size="small" clearable></el-input>
+                    <span style="color:#909399;font-size:13px">共 {{filteredData.length}} 条政策</span>
+                </div>
+            </div>
+
+            <div class="data-card">
+                <div class="table-info" v-if="selectedAirline">
+                    <span>{{selectedAirline}} 大客户政策</span>
+                    <span>共 {{getAirlineCount(selectedAirline)}} 家客户</span>
+                </div>
+                <div v-if="loading" style="text-align:center;padding:40px;color:#909399">
+                    <div style="font-size:24px">⏳ 加载中...</div>
+                </div>
+
+                <el-table :data="filteredData" border stripe :cell-style="{padding:'6px'}" :header-cell-style="{padding:'8px',background:'#f5f7fa',height:'36px'}" size="mini" style="width:100%" :default-sort="{prop: 'seq', order: 'ascending'}">
+                    <el-table-column prop="seq" label="序号" width="55" align="center" sortable></el-table-column>
+                    <el-table-column prop="customer_name" label="客户单位名称" min-width="180" show-overflow-tooltip>
+                        <template slot-scope="scope">
+                            <strong>{{scope.row.customer_name}}</strong>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="id_type" label="实名制" width="80" align="center">
+                        <template slot-scope="scope">
+                            <span :style="{color: scope.row.id_type && scope.row.id_type.includes('实名') ? '#67c23a' : '#909399'}">
+                                {{scope.row.id_type || '-'}}
+                            </span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="customer_code" label="大客户号" width="110" align="center">
+                        <template slot-scope="scope">
+                            <span class="policy-code">{{scope.row.customer_code || '-'}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="command" label="运价指令" min-width="150" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="rebate" label="政策返点/直减" min-width="120" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="ticket_type" label="票证类型" width="80" align="center">
+                        <template slot-scope="scope">
+                            <span class="status-tag" :class="scope.row.ticket_type === 'BSP' ? 'active' : 'expired'">
+                                {{scope.row.ticket_type || '-'}}
+                            </span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="office" label="OFFICE号" width="100" align="center"></el-table-column>
+                    <el-table-column prop="person" label="责任人" width="80" align="center"></el-table-column>
+                    <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="valid_period" label="有效期" min-width="160">
+                        <template slot-scope="scope">
+                            <span v-if="scope.row.valid_period" :class="isExpired(scope.row.valid_period) ? 'expired-tag' : 'valid-tag'">
+                                {{scope.row.valid_period}}
+                            </span>
+                            <span v-else>-</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <div class="empty-state" v-if="filteredData.length === 0">
+                    <div style="font-size:48px;margin-bottom:15px">📋</div>
+                    <div>暂无大客户政策数据</div>
+                </div>
+            </div>
+
+            <div style="margin-top:20px;color:#909399;font-size:12px;text-align:center">
+                * 数据仅供参考，实际政策以航空公司官方为准
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                selectedAirline: '',
+                filterTicketType: '',
+                searchText: '',
+                allData: [],
+                loading: true
+            },
+            computed: {
+                filteredData() {
+                    let data = this.allData;
+                    
+                    if (this.selectedAirline) {
+                        data = data.filter(item => item.airline === this.selectedAirline);
+                    }
+                    
+                    if (this.filterTicketType) {
+                        data = data.filter(item => (item.ticket_type || '').toUpperCase() === this.filterTicketType.toUpperCase());
+                    }
+                    
+                    if (this.searchText) {
+                        const s = this.searchText.toLowerCase();
+                        data = data.filter(item => 
+                            (item.customer_name || '').toLowerCase().includes(s) ||
+                            (item.customer_code || '').toLowerCase().includes(s) ||
+                            (item.remark || '').toLowerCase().includes(s)
+                        );
+                    }
+                    
+                    return data;
+                }
+            },
+            mounted() {
+                this.loadData();
+            },
+            methods: {
+                async loadData() {
+                    this.allData = [];
+                    this.loading = true;
+                    
+                    // 加载国航数据
+                    await this.loadCSV('26年大客户汇总表-国航.csv', '国航');
+                    // 加载川航数据
+                    await this.loadCSV('26年大客户汇总表-川航.csv', '川航');
+                    // 加载南航数据
+                    await this.loadCSV('26年大客户汇总表-南航.csv', '南航');
+                    
+                    this.loading = false;
+                    console.log('Total loaded:', this.allData.length);
+                },
+                
+                async loadCSV(filename, airline) {
+                    try {
+                        const resp = await fetch('/static/' + filename);
+                        if (!resp.ok) {
+                            console.error(`Failed to fetch ${filename}: ${resp.status}`);
+                            return;
+                        }
+                        const text = await resp.text();
+                        const lines = text.split(/\r?\n/).filter(line => line.trim());
+                        console.log(`${filename}: ${lines.length} lines`);
+                        
+                        // 跳过第一行标题和第二行表头
+                        for (let i = 2; i < lines.length; i++) {
+                            const cols = this.parseCSVLine(lines[i]);
+                            if (cols.length < 12) continue;
+                            
+                            const customerName = cols[1] || '';
+                            if (!customerName || customerName.trim() === '') continue;
+                            
+                            this.allData.push({
+                                airline: airline,
+                                seq: cols[0] || '',
+                                customer_name: customerName,
+                                id_type: cols[2] || '',
+                                customer_code: cols[3] || '',
+                                command: cols[4] || '',
+                                rebate: cols[5] || '',
+                                ticket_type: cols[6] || '',
+                                office: cols[7] || '',
+                                list_type: cols[8] || '',
+                                person: cols[9] || '',
+                                remark: cols[10] || '',
+                                valid_period: cols[11] || '',
+                                service: cols.length > 12 ? cols[12] : ''
+                            });
+                        }
+                        console.log(`${airline} loaded: ${this.allData.filter(d=>d.airline===airline).length} records`);
+                    } catch (e) {
+                        console.error(`Failed to load ${filename}:`, e);
+                    }
+                },
+                
+                parseCSVLine(line) {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.trim());
+                    
+                    return result;
+                },
+                
+                onAirlineChange() {
+                    // 切换航司后的回调
+                },
+                
+                getAirlineCount(airline) {
+                    return this.allData.filter(item => item.airline === airline).length;
+                },
+                
+                isExpired(period) {
+                    if (!period) return false;
+                    // 尝试解析有效期截止日期
+                    const match = period.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+                    if (match) {
+                        const endDate = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                        return endDate < new Date();
+                    }
+                    return false;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

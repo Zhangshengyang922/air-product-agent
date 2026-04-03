@@ -18,8 +18,10 @@
         .content-header { background: white; padding: 20px; border-radius: 4px; margin-bottom: 15px; }
         .header-title { font-size: 18px; font-weight: bold; color: #303133; margin-bottom: 15px; }
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; min-height: 40px; }
         .filter-row .el-select, .filter-row .el-input { width: 150px; }
+        .filter-row .el-select:nth-child(6) { width: 180px; }
+        .filter-row .el-select:nth-child(5) { width: 180px; }
         .data-panel { background: white; padding: 10px; border-radius: 4px; }
         .upload-btn { display: inline-block; padding: 10px 20px; background: #409eff; color: white; border-radius: 4px; font-size: 13px; text-decoration: none; }
         .tag-price { background: #409eff; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
@@ -65,7 +67,10 @@
                             {{selectedAirline ? getAirlineName(selectedAirline) + ' 产品' : '全部产品'}}
                             <span style="font-size:14px;color:#909399;font-weight:normal">({{products.length}}条)</span>
                         </div>
-                        <a href="/upload.html" class="upload-btn">📤 上传产品</a>
+                        <div>
+                            <a href="/vip_clients.html" class="upload-btn" style="background:#67c23a;margin-right:10px">🏢 大客户政策</a>
+                            <a href="/upload.html" class="upload-btn">📤 上传产品</a>
+                        </div>
                     </div>
                     <div class="filter-row">
                         <el-select v-model="selectedAirline" placeholder="选择航空公司" clearable size="small" filterable>
@@ -89,6 +94,10 @@
                         <el-select v-model="filterOffice" placeholder="Office号" clearable size="small" filterable>
                             <el-option label="全部Office" value=""></el-option>
                             <el-option v-for="office in officeList" :key="office" :label="office" :value="office"></el-option>
+                        </el-select>
+                        <el-select v-model="filterVipPolicy" placeholder="大客户政策" clearable size="small" filterable>
+                            <el-option label="全部政策" value=""></el-option>
+                            <el-option v-for="level in vipPolicyLevels" :key="level" :label="level" :value="level"></el-option>
                         </el-select>
                         <el-input v-model="searchText" placeholder="搜索产品" prefix-icon="el-icon-search" style="width:180px" size="small" clearable></el-input>
                     </div>
@@ -150,6 +159,9 @@
                 filterTicketType: '',
                 filterProductType: '',
                 filterOffice: '',
+                filterVipPolicy: '',
+                vipPolicyLevels: [],
+                vipPolicies: [],
                 searchText: '',
                 officeList: ['KMG319', 'CTU152', 'SZX146', 'KMG279']
             },
@@ -164,6 +176,20 @@
                     }
                     if (this.filterOffice) {
                         list = list.filter(p => (p.office||'').includes(this.filterOffice));
+                    }
+                    // 大客户政策筛选 - 根据航司+OFFICE匹配
+                    if (this.filterVipPolicy && this.vipPolicies.length > 0) {
+                        const policyLevel = this.filterVipPolicy;
+                        list = list.filter(p => {
+                            const airline = p.airline || '';
+                            const office = p.office || '';
+                            // 查找匹配的大客户政策
+                            return this.vipPolicies.some(policy => 
+                                policy.airline === airline && 
+                                policy.office && office.includes(policy.office) &&
+                                policy.policy_level === policyLevel
+                            );
+                        });
                     }
                     if (this.searchText) {
                         const s = this.searchText.toLowerCase();
@@ -197,6 +223,7 @@
                     if (token) {
                         this.isLoggedIn = true;
                         this.loadAirlines();
+                        this.loadVipPolicies();
                     }
                 },
                 getAuthHeader() {
@@ -223,6 +250,7 @@
                             this.isLoggedIn = true;
                             await this.loadAirlines();
                             await this.loadProducts();
+                            await this.loadVipPolicies();
                         } else {
                             this.loginError = data.message || '账号或密码错误';
                         }
@@ -263,6 +291,21 @@
                     } catch (e) {
                         console.error('Failed to load products:', e);
                         this.products = [];
+                    }
+                },
+                async loadVipPolicies() {
+                    try {
+                        const resp = await fetch(`${API_BASE}/api/vip-policies`, { headers: this.getAuthHeader() });
+                        const data = await resp.json();
+                        if (data.success) {
+                            this.vipPolicies = data.data.policies || [];
+                            this.vipPolicyLevels = data.data.policy_levels || [];
+                            console.log('VIP policies loaded:', this.vipPolicies.length);
+                        }
+                    } catch (e) {
+                        console.error('Failed to load VIP policies:', e);
+                        this.vipPolicies = [];
+                        this.vipPolicyLevels = [];
                     }
                 },
                 getProductType(product) {

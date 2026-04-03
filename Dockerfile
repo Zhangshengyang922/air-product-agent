@@ -7,8 +7,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用文件
-COPY cloud_main_v2.py main.py
+COPY main.py .
 COPY assets/ ./assets/
+COPY static/ ./static/
+COPY src/ ./src/
+COPY config/ ./config/
+COPY "26年大客户汇总表-国航.csv" .
+COPY "26年大客户汇总表-川航.csv" .
+COPY "26年大客户汇总表-南航.csv" .
+COPY 各航司汇总产品-KY.csv .
 
 # 暴露端口
 EXPOSE 8000

@@ -345,6 +345,24 @@ async def root(request: Request):
     else:
         return {"message": "Airline Product System", "status": "running"}
 
+# 大客户政策页面路由
+@app.get("/vip_clients.html")
+async def vip_clients_page():
+    """大客户政策页面"""
+    vip_file = static_dir / "vip_clients.html"
+    if vip_file.exists():
+        return FileResponse(str(vip_file))
+    return {"message": "VIP clients page not found"}
+
+# index.html 页面路由
+@app.get("/index.html")
+async def index_html_page():
+    """index.html页面"""
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    return {"message": "Index page not found"}
+
 # 登录页面路由 (无需鉴权)
 @app.get("/login")
 async def login_page():
@@ -974,6 +992,116 @@ async def get_ticket_types_api(token: str = Depends(verify_token)):
         return {
             "success": False,
             "message": f"获取票证类型统计失败: {str(e)}",
+            "data": {}
+        }
+
+
+def parse_vip_policy_csv():
+    """解析大客户政策CSV文件"""
+    import pandas as pd
+    
+    workspace_path = Path(__file__).parent.parent
+    vip_files = [
+        "26年大客户汇总表-南航.csv",
+        "26年大客户汇总表-国航.csv", 
+        "26年大客户汇总表-川航.csv"
+    ]
+    
+    all_policies = []
+    policy_levels = set()  # 政策层级
+    
+    for filename in vip_files:
+        filepath = workspace_path / filename
+        if not filepath.exists():
+            continue
+            
+        try:
+            # 尝试不同编码
+            for encoding in ['utf-8-sig', 'utf-8', 'gbk']:
+                try:
+                    df = pd.read_csv(filepath, encoding=encoding, header=1, on_bad_lines='skip')
+                    break
+                except:
+                    continue
+            
+            # 航司代码映射
+            airline_code = ''
+            if '南航' in filename:
+                airline_code = 'CZ'
+            elif '国航' in filename:
+                airline_code = 'CA'
+            elif '川航' in filename:
+                airline_code = '3U'
+            
+            # 遍历有效行
+            for _, row in df.iterrows():
+                # 获取备注列（政策层级信息）
+                remark = str(row.get('备注', '')).strip() if pd.notna(row.get('备注')) else ''
+                if not remark or remark == 'nan':
+                    continue
+                    
+                # 获取大客户号
+                vip_code = str(row.get('大客户号', '')).strip() if pd.notna(row.get('大客户号')) else ''
+                
+                # 获取OFFICE号
+                office = str(row.get('授权OFFICE号', '')).strip() if pd.notna(row.get('授权OFFICE号')) else ''
+                
+                # 获取票证类型
+                ticket_type = str(row.get('票证类型', '')).strip() if pd.notna(row.get('票证类型')) else ''
+                
+                # 获取客户名称
+                customer_name = str(row.get('客户单位名称', '')).strip() if pd.notna(row.get('客户单位名称')) else ''
+                
+                if vip_code or customer_name:
+                    # 提取政策层级
+                    level = remark if remark else '无政策'
+                    policy_levels.add(level)
+                    
+                    all_policies.append({
+                        'airline': airline_code,
+                        'vip_code': vip_code,
+                        'customer_name': customer_name,
+                        'office': office,
+                        'ticket_type': ticket_type,
+                        'policy_level': level,
+                        'remark': remark
+                    })
+        except Exception as e:
+            logger.error(f"解析大客户文件 {filename} 失败: {e}")
+            continue
+    
+    return all_policies, list(policy_levels)
+
+
+@app.get("/api/vip-policies")
+async def get_vip_policies_api(token: str = Depends(verify_token)):
+    """获取大客户政策列表及统计 - 需要鉴权"""
+    try:
+        policies, policy_levels = parse_vip_policy_csv()
+        
+        # 按政策层级统计
+        level_stats = {}
+        for policy in policies:
+            level = policy['policy_level']
+            if level not in level_stats:
+                level_stats[level] = 0
+            level_stats[level] += 1
+        
+        return {
+            "success": True,
+            "message": "大客户政策统计",
+            "data": {
+                "policies": policies,
+                "policy_levels": policy_levels,
+                "level_stats": level_stats,
+                "total_count": len(policies)
+            }
+        }
+    except Exception as e:
+        logger.error(f"获取大客户政策失败: {e}")
+        return {
+            "success": False,
+            "message": f"获取大客户政策失败: {str(e)}",
             "data": {}
         }
 

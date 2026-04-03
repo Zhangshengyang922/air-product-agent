@@ -1,5 +1,0 @@
-﻿airline,product_name,route,booking_class,price_increase,rebate_ratio,office,remarks,valid_period,ticket_type,policy_identifier,policy_code
-HU,智选经济舱,所有航线,Q舱,390,120,,,,ALL,,
-HU,优选经济舱,所有航线,E舱 E舱上浮220元现返70元，上浮250元现返80元,220/250,70/80,,,,ALL,,
-HU,优享贵宾室,适用于HU/CN国内自营航班,H/K/L/M/X/V/N/A/U/T，CVG1(北京）,220,40,CVG1,,2026年9月15日(含）,ALL,,
-HU,优享贵宾室,适用于HU/CN国内自营航班,H/K/L/M/X/V/N/A/U/T，CVG1(北京）,220,40,CVG1,,2026年9月15日(含）,ALL,,

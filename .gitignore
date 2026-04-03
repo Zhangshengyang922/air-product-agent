@@ -1,42 +1,27 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-.venv/
 *.egg-info/
 dist/
 build/
-
-# 数据文件
-*.xlsx
-*.xls
-*.csv.bak
-*~
+*.egg
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# 操作系统
+# OS
 .DS_Store
 Thumbs.db
-desktop.ini
+
+# Logs
+*.log
 
 # CodeBuddy
 .codebuddy/
 
-# 日志文件
-*.log
-
-# 临时文件
-*.tmp
+# Backups
+*.backup
 *.bak
-*.swp
