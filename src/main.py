@@ -940,6 +940,53 @@ async def update_product_airlines_api(token: str = Depends(verify_token)):
         }
 
 
+@app.get("/api/jd-products")
+async def get_jd_products_api(token: str = Depends(verify_token)):
+    """获取首都航空JD产品"""
+    try:
+        from pathlib import Path
+        import pandas as pd
+        
+        static_dir = Path(__file__).parent.parent / "static"
+        jd_file = static_dir / "各航司汇总产品-JD.csv"
+        
+        jd_products = []
+        if jd_file.exists():
+            try:
+                df = pd.read_csv(jd_file, encoding='utf-8-sig')
+                df = df.fillna('')
+                for _, row in df.iterrows():
+                    jd_products.append({
+                        "product_name": row.get('产品名称', ''),
+                        "route": row.get('航线', ''),
+                        "cabin": row.get('订座舱位', ''),
+                        "price": row.get('上浮价格/直减', ''),
+                        "rebate": row.get('政策返点', ''),
+                        "product_code": row.get('产品代码', ''),
+                        "office": row.get('出票OFFICE', ''),
+                        "remark": row.get('备注', ''),
+                        "valid_period": row.get('产品有限期', ''),
+                        "settlement": row.get('航司结算方式', '')
+                    })
+            except Exception as e:
+                logger.error(f"加载JD产品失败: {e}")
+        
+        return {
+            "success": True,
+            "message": "首都航空产品",
+            "data": {
+                "products": jd_products,
+                "total": len(jd_products)
+            }
+        }
+    except Exception as e:
+        logger.error(f"获取JD产品失败: {e}")
+        return {
+            "success": False,
+            "message": f"获取失败: {str(e)}"
+        }
+
+
 @app.get("/api/stats")
 async def get_stats_api(token: str = Depends(verify_token)):
     """获取系统统计信息 - 需要鉴权"""
