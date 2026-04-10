@@ -58,7 +58,7 @@ app.add_middleware(
 
 class Product:
     """产品数据模型"""
-    def __init__(self, airline, product_name, route, booking_class, price_increase, rebate_ratio, office, remarks, valid_period, policy_code):
+    def __init__(self, airline, product_name, route, booking_class, price_increase, rebate_ratio, office, remarks, valid_period, policy_code, settlement=''):
         self.airline = airline
         self.product_name = product_name
         self.route = route
@@ -69,6 +69,7 @@ class Product:
         self.remarks = remarks
         self.valid_period = valid_period
         self.policy_code = policy_code
+        self.settlement = settlement
 
     def to_dict(self):
         return {
@@ -81,7 +82,8 @@ class Product:
             'office': self.office,
             'remarks': self.remarks,
             'valid_period': self.valid_period,
-            'policy_code': self.policy_code
+            'policy_code': self.policy_code,
+            'settlement': self.settlement
         }
 
 # 全局数据存储
@@ -127,6 +129,9 @@ def load_products():
                 policy_code = str(policy_code_val).strip() if pd.notna(policy_code_val) else ''
 
                 if product_name and airline:
+                    # 读取结算方式
+                    settlement = str(row.get('航司结算方式', '')).strip()
+                    
                     # 添加原始行号用于排序
                     product = Product(
                         airline=airline,
@@ -138,7 +143,8 @@ def load_products():
                         office=office,
                         remarks=remarks,
                         valid_period=valid_period,
-                        policy_code=policy_code
+                        policy_code=policy_code,
+                        settlement=settlement
                     )
                     # 添加原始顺序属性
                     product._original_order = idx
@@ -333,7 +339,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 ¥{{scope.row.price_increase || 0}}
                             </template>
                         </el-table-column>
-                        <el-table-column prop="rebate_ratio" label="后返" width="60" align="center"></el-table-column>
+                        <el-table-column prop="rebate_ratio" label="后返" width="70" align="center"></el-table-column>
+                        <el-table-column prop="settlement" label="结算方式" width="80" align="center">
+                            <template slot-scope="scope">
+                                <span style="color:#e6a23c;font-size:11px">{{scope.row.settlement || '-'}}</span>
+                            </template>
+                        </el-table-column>
                         <el-table-column prop="route" label="航线" min-width="90"></el-table-column>
                         <el-table-column prop="booking_class" label="订座舱位" min-width="110"></el-table-column>
                         <el-table-column prop="remarks" label="备注" min-width="90"></el-table-column>
