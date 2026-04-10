@@ -116,7 +116,12 @@
                                 ¥{{scope.row.price_increase || 0}}
                             </template>
                         </el-table-column>
-                        <el-table-column prop="rebate_ratio" label="后返" width="60" align="center"></el-table-column>
+                        <el-table-column prop="rebate_ratio" label="后返" width="70" align="center"></el-table-column>
+                        <el-table-column prop="settlement" label="结算方式" width="90" align="center">
+                            <template slot-scope="scope">
+                                <span style="color:#e6a23c;font-size:11px">{{scope.row.settlement || '-'}}</span>
+                            </template>
+                        </el-table-column>
                         <el-table-column prop="route" label="航线" min-width="90"></el-table-column>
                         <el-table-column prop="booking_class" label="订座舱位" min-width="110"></el-table-column>
                         <el-table-column prop="remarks" label="备注" min-width="90"></el-table-column>

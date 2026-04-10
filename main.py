@@ -340,7 +340,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </template>
                         </el-table-column>
                         <el-table-column prop="rebate_ratio" label="后返" width="70" align="center"></el-table-column>
-                        <el-table-column prop="settlement" label="结算方式" width="80" align="center">
+                        <el-table-column prop="settlement" label="结算方式" width="90" align="center">
                             <template slot-scope="scope">
                                 <span style="color:#e6a23c;font-size:11px">{{scope.row.settlement || '-'}}</span>
                             </template>
