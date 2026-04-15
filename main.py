@@ -107,11 +107,16 @@ def load_products():
 
         print(f"[OK] 从CSV加载了 {len(df)} 行数据")
 
-        # 记录航司出现顺序
+        # 记录航司出现顺序（跳过说明文字行）
         airline_order = []
         for idx, airline in enumerate(df['航司代码']):
-            if airline not in airline_order and str(airline).strip():
-                airline_order.append(str(airline).strip())
+            airline_str = str(airline).strip()
+            # 跳过空行和说明文字行（以中文括号开头，或说明文字如"1、xxx"）
+            if airline_str and not airline_str.startswith('（') and not airline_str.startswith('(') and airline_str not in airline_order:
+                # 跳过说明文字（以数字序号开头且后面是中文的，如"1、机+积分"）
+                if len(airline_str) > 2 and airline_str[0].isdigit() and airline_str[1] in '、.':
+                    continue
+                airline_order.append(airline_str)
 
         products = []
         for idx, row in df.iterrows():
@@ -128,7 +133,10 @@ def load_products():
                 policy_code_val = row.get('产品代码', '')
                 policy_code = str(policy_code_val).strip() if pd.notna(policy_code_val) else ''
 
-                if product_name and airline:
+                if product_name and airline and not airline.startswith('（') and not airline.startswith('('):
+                    # 跳过说明文字（以数字序号开头且后面是中文的，如"1、机+积分"）
+                    if len(airline) > 2 and airline[0].isdigit() and airline[1] in '、.':
+                        continue
                     # 读取结算方式
                     settlement = str(row.get('航司结算方式', '')).strip()
                     
