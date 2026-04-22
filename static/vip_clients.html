@@ -66,6 +66,10 @@
                         <el-option label="BSP" value="BSP"></el-option>
                         <el-option label="GP" value="GP"></el-option>
                     </el-select>
+                    <el-select v-model="filterTeam" placeholder="选择战队" clearable size="small" style="width:130px">
+                        <el-option label="全部战队" value=""></el-option>
+                        <el-option v-for="team in teamList" :key="team" :label="team" :value="team"></el-option>
+                    </el-select>
                     <el-input v-model="searchText" placeholder="搜索客户名称" prefix-icon="el-icon-search" style="width:200px" size="small" clearable></el-input>
                     <span style="color:#909399;font-size:13px">共 {{filteredData.length}} 条政策</span>
                 </div>
@@ -143,6 +147,7 @@
             data: {
                 selectedAirline: '',
                 filterTicketType: '',
+                filterTeam: '',
                 searchText: '',
                 allData: [],
                 loading: true
@@ -159,6 +164,10 @@
                         data = data.filter(item => (item.ticket_type || '').toUpperCase() === this.filterTicketType.toUpperCase());
                     }
                     
+                    if (this.filterTeam) {
+                        data = data.filter(item => item.team === this.filterTeam);
+                    }
+                    
                     if (this.searchText) {
                         const s = this.searchText.toLowerCase();
                         data = data.filter(item => 
@@ -169,6 +178,10 @@
                     }
                     
                     return data;
+                },
+                teamList() {
+                    const teams = [...new Set(this.allData.map(item => item.team).filter(t => t && t.trim()))];
+                    return teams.sort();
                 }
             },
             mounted() {
