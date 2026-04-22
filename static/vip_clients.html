@@ -109,6 +109,8 @@
                         </template>
                     </el-table-column>
                     <el-table-column prop="office" label="OFFICE号" width="100" align="center"></el-table-column>
+                    <el-table-column prop="list_type" label="名单分配" width="90" align="center"></el-table-column>
+                    <el-table-column prop="team" label="战队" width="90" align="center"></el-table-column>
                     <el-table-column prop="person" label="责任人" width="80" align="center"></el-table-column>
                     <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip></el-table-column>
                     <el-table-column prop="valid_period" label="有效期" min-width="160">
@@ -218,6 +220,7 @@
                                 ticket_type: cols[6] || '',
                                 office: cols[7] || '',
                                 list_type: cols[8] || '',
+                                team: cols[9] || '',
                                 person: cols[10] || '',
                                 remark: cols[11] || '',
                                 valid_period: cols[12] || '',
