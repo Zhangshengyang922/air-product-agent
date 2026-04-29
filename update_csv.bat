@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo CSV数据文件快速更新工具
+echo CSV数据文件快速更新工具 v2.0
 echo ========================================
 echo.
 
@@ -31,22 +31,24 @@ echo 正在更新CSV文件...
 echo ========================================
 echo.
 
-:: 复制产品CSV到static目录
-echo [1/3] 更新产品数据文件...
+:: 复制产品CSV到static和assets目录
+echo [1/4] 更新产品数据文件...
 for %%f in (csv_updates\各航司汇总产品-*.csv) do (
-    echo 复制: %%~nxf
+    echo 复制到static: %%~nxf
     copy /y "%%f" "static\%%~nxf" >nul
+    echo 复制到assets: %%~nxf
+    copy /y "%%f" "assets\%%~nxf" >nul
 )
 
 :: 复制大客户CSV到static目录
-echo [2/3] 更新大客户数据文件...
+echo [2/4] 更新大客户数据文件...
 for %%f in (csv_updates\26年大客户汇总表-*.csv) do (
-    echo 复制: %%~nxf
+    echo 复制到static: %%~nxf
     copy /y "%%f" "static\%%~nxf" >nul
 )
 
-:: 复制其他CSV文件
-echo [3/3] 更新其他数据文件...
+:: 复制其他CSV文件到static目录
+echo [3/4] 更新其他数据文件到static...
 for %%f in (csv_updates\*.csv) do (
     set "found=0"
     for %%g in (csv_updates\各航司汇总产品-*.csv csv_updates\26年大客户汇总表-*.csv) do (
@@ -56,6 +58,12 @@ for %%f in (csv_updates\*.csv) do (
         echo 复制: %%~nxf
         copy /y "csv_updates\%%~nxf" "static\%%~nxf" >nul
     )
+)
+
+:: 清理旧文件（可选）
+echo [4/4] 清理csv_updates目录...
+for %%f in (csv_updates\*.csv) do (
+    del /q "%%f" 2>nul
 )
 
 echo.
@@ -68,7 +76,7 @@ set /p push="是否推送到GitHub并更新阿里云? (Y/N): "
 if /i "%push%"=="Y" (
     echo.
     echo 正在提交到GitHub...
-    git add static/
+    git add static/ assets/
     git commit -m "更新CSV数据 %date% %time%"
     git push origin main
     echo.
