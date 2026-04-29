@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo CSV数据文件快速更新工具 v2.0
+echo CSV数据文件快速更新工具 v3.0
 echo ========================================
 echo.
 
@@ -32,7 +32,7 @@ echo ========================================
 echo.
 
 :: 复制产品CSV到static和assets目录
-echo [1/4] 更新产品数据文件...
+echo [1/5] 更新产品数据文件...
 for %%f in (csv_updates\各航司汇总产品-*.csv) do (
     echo 复制到static: %%~nxf
     copy /y "%%f" "static\%%~nxf" >nul
@@ -41,14 +41,14 @@ for %%f in (csv_updates\各航司汇总产品-*.csv) do (
 )
 
 :: 复制大客户CSV到static目录
-echo [2/4] 更新大客户数据文件...
+echo [2/5] 更新大客户数据文件...
 for %%f in (csv_updates\26年大客户汇总表-*.csv) do (
     echo 复制到static: %%~nxf
     copy /y "%%f" "static\%%~nxf" >nul
 )
 
 :: 复制其他CSV文件到static目录
-echo [3/4] 更新其他数据文件到static...
+echo [3/5] 更新其他数据文件到static...
 for %%f in (csv_updates\*.csv) do (
     set "found=0"
     for %%g in (csv_updates\各航司汇总产品-*.csv csv_updates\26年大客户汇总表-*.csv) do (
@@ -60,8 +60,46 @@ for %%f in (csv_updates\*.csv) do (
     )
 )
 
+:: 合并生成products.csv（自动更新主数据文件）
+echo [4/5] 合并生成products.csv...
+python -c "
+import os
+import pandas as pd
+from pathlib import Path
+
+base_dir = Path(r'%~dp0')
+assets_dir = base_dir / 'assets'
+products_file = assets_dir / 'products.csv'
+
+# 收集所有航司CSV文件
+csv_files = list(assets_dir.glob('各航司汇总产品-*.csv'))
+
+if csv_files:
+    dfs = []
+    for f in csv_files:
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig')
+            dfs.append(df)
+            print(f'  已读取: {f.name}')
+        except Exception as e:
+            print(f'  跳过（读取失败）: {f.name} - {e}')
+    
+    if dfs:
+        merged = pd.concat(dfs, ignore_index=True)
+        merged.to_csv(products_file, index=False, encoding='utf-8-sig')
+        print(f'  合并完成: {len(merged)} 行 -> {products_file.name}')
+        # 同时复制到static目录
+        static_file = base_dir / 'static' / 'products.csv'
+        merged.to_csv(static_file, index=False, encoding='utf-8-sig')
+        print(f'  已同步到: {static_file.name}')
+    else:
+        print('  没有可合并的文件')
+else:
+    print('  没有找到航司CSV文件')
+" 2>&1
+
 :: 清理旧文件（可选）
-echo [4/4] 清理csv_updates目录...
+echo [5/5] 清理csv_updates目录...
 for %%f in (csv_updates\*.csv) do (
     del /q "%%f" 2>nul
 )
