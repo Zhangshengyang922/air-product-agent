@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo CSV数据文件快速更新工具 v3.0
+echo CSV数据文件快速更新工具 v3.1
 echo ========================================
 echo.
 
@@ -62,41 +62,7 @@ for %%f in (csv_updates\*.csv) do (
 
 :: 合并生成products.csv（自动更新主数据文件）
 echo [4/5] 合并生成products.csv...
-python -c "
-import os
-import pandas as pd
-from pathlib import Path
-
-base_dir = Path(r'%~dp0')
-assets_dir = base_dir / 'assets'
-products_file = assets_dir / 'products.csv'
-
-# 收集所有航司CSV文件
-csv_files = list(assets_dir.glob('各航司汇总产品-*.csv'))
-
-if csv_files:
-    dfs = []
-    for f in csv_files:
-        try:
-            df = pd.read_csv(f, encoding='utf-8-sig')
-            dfs.append(df)
-            print(f'  已读取: {f.name}')
-        except Exception as e:
-            print(f'  跳过（读取失败）: {f.name} - {e}')
-    
-    if dfs:
-        merged = pd.concat(dfs, ignore_index=True)
-        merged.to_csv(products_file, index=False, encoding='utf-8-sig')
-        print(f'  合并完成: {len(merged)} 行 -> {products_file.name}')
-        # 同时复制到static目录
-        static_file = base_dir / 'static' / 'products.csv'
-        merged.to_csv(static_file, index=False, encoding='utf-8-sig')
-        print(f'  已同步到: {static_file.name}')
-    else:
-        print('  没有可合并的文件')
-else:
-    print('  没有找到航司CSV文件')
-" 2>&1
+python -c "import os; import pandas as pd; from pathlib import Path; base_dir = Path(r'%~dp0'); assets_dir = base_dir / 'assets'; products_file = assets_dir / 'products.csv'; csv_files = list(assets_dir.glob('各航司汇总产品-*.csv')); dfs = []; [dfs.append(pd.read_csv(f, encoding='utf-8-sig')) or print(f'已读取: {f.name}') for f in csv_files if f.exists()]; merged = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame(); merged.to_csv(products_file, index=False, encoding='utf-8-sig'); print(f'合并完成: {len(merged)} 行'); merged.to_csv(base_dir / 'static' / 'products.csv', index=False, encoding='utf-8-sig')"
 
 :: 清理旧文件（可选）
 echo [5/5] 清理csv_updates目录...
