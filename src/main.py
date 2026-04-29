@@ -69,7 +69,7 @@ AUTH_PASSWORD = "yntb123"
 active_tokens: Dict[str, datetime] = {}
 
 # 导入文件监控和WebSocket管理模块
-from utils.file_watcher import start_file_watcher, stop_file_watcher
+from utils.file_watcher import start_file_watcher, start_csv_dir_watcher, stop_file_watcher, stop_dir_watcher
 from utils.websocket_manager import manager, notify_data_updated, MessageType
 
 # 生成简单的token (生产环境应该使用JWT)
@@ -1798,10 +1798,17 @@ def on_products_file_changed(file_path):
     try:
         logger.info(f"检测到产品文件变化: {file_path}")
 
-        # 重新加载数据
+        # 重新加载数据 - 强制重新获取智能体实例以加载最新数据
         from agents.agent import get_agent_instance
+        
+        # 清空全局缓存，强制重新加载
+        import agents.agent
+        agents.agent._agent_instance = None
+        
+        # 获取新的智能体实例（会重新加载CSV数据）
         agent = get_agent_instance()
-        agent.load_products()  # 重新加载产品数据
+        
+        logger.info(f"✅ 产品数据已重新加载，共 {len(agent.products)} 个产品")
 
         # 通知所有WebSocket连接数据已更新
         asyncio.create_task(notify_data_updated("产品文件已更新，数据已自动刷新"))
@@ -1823,13 +1830,13 @@ def start_http_server(port):
     if workspace_path not in sys.path:
         sys.path.insert(0, workspace_path)
 
-    # 启动文件监控
-    products_csv_path = os.path.join(workspace_path, "assets", "products.csv")
-    if os.path.exists(products_csv_path):
-        start_file_watcher(products_csv_path, on_products_file_changed)
-        logger.info(f"已启动产品文件监控: {products_csv_path}")
+    # 启动文件监控 - 监控整个 assets 目录的所有 CSV 文件
+    assets_dir = os.path.join(workspace_path, "assets")
+    if os.path.exists(assets_dir):
+        start_csv_dir_watcher(assets_dir, on_products_file_changed)
+        logger.info(f"已启动 CSV 文件监控: {assets_dir}")
     else:
-        logger.warning(f"产品文件不存在，不启动文件监控: {products_csv_path}")
+        logger.warning(f"assets 目录不存在，不启动文件监控: {assets_dir}")
 
     logger.info(f"Start HTTP Server, Port: {port}, Workers: {workers}")
     logger.info(f"🔗 访问地址: http://localhost:{port}")
