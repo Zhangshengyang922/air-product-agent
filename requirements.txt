@@ -3,3 +3,16 @@ uvicorn==0.27.0
 pandas==2.1.4
 pydantic==2.5.3
 python-multipart==0.0.6
+cozeloop==0.9.8
+coze-api==0.9.18
+coze-coding-utils==0.0.6
+chardet==5.2.0
+python-pptx==0.6.23
+watchdog==3.0.0
+openai==1.12.0
+langchain==0.1.14
+langgraph==0.0.29
+python-dotenv==1.0.1
+aiohttp==3.9.3
+charset-normalizer==3.3.2
+requests==2.31.0
