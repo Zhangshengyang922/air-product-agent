@@ -3,34 +3,16 @@ const API_BASE = '';
 
 // 航司名称映射
 const AIRLINE_NAMES = {
-    'CA': '中国国际航空',
-    'MU': '中国东方航空',
-    'CZ': '中国南方航空',
-    'HU': '海南航空',
-    'FM': '上海航空',
-    'MF': '厦门航空',
-    'SC': '山东航空',
-    'ZH': '深圳航空',
-    '3U': '四川航空',
-    'KY': '昆明航空',
-    'BK': '昆明航空',
-    'CN': '大新华航空',
-    'EU': '成都航空',
-    'G5': '华夏航空',
-    'GS': '天津航空',
-    'HO': '吉祥航空',
-    'JD': '首都航空',
-    'JR': '幸福航空',
-    'KN': '中国联合航空',
-    'NS': '河北航空',
-    'OQ': '重庆航空',
-    'QW': '青岛航空',
-    'RY': '江西航空',
-    'TV': '西藏航空',
-    'UQ': '乌鲁木齐航空',
-    'VQ': '西部航空',
-    'YI': '福州航空',
-    'ZG': '桂林航空'
+    '3U': '四川航空', '8L': '祥鹏航空', '9H': '长安航空', 'A6': '湖南航空',
+    'BK': '奥凯航空', 'CA': '中国国航', 'CJ': '长龙航空', 'CN': '大新华航空',
+    'CZ': '南方航空', 'DR': '瑞丽航空', 'DZ': '东海航空', 'EU': '成都航空',
+    'FM': '上海航空', 'FU': '福州航空', 'G5': '华夏航空', 'GJ': '长龙航空',
+    'GS': '天津航空', 'GX': '北部湾航空', 'GY': '多彩贵州', 'HO': '吉祥航空',
+    'HU': '海南航空', 'JD': '首都航空', 'JR': '幸福航空', 'KN': '中国联合航空',
+    'KY': '昆明航空', 'LT': '龙江航空', 'MF': '厦门航空', 'MU': '东方航空',
+    'NS': '河北航空', 'OQ': '重庆航空', 'PN': '西部航空', 'QW': '青岛航空',
+    'RY': '江西航空', 'SC': '山东航空', 'TV': '西藏航空', 'UQ': '乌鲁木齐航空',
+    'ZH': '深圳航空'
 };
 
 // 全局状态
@@ -117,7 +99,7 @@ function renderAirlines(filter = '') {
     // 渲染航司列表
     container.innerHTML = airlines.map(airline => {
         const name = AIRLINE_NAMES[airline.code] || airline.name || airline.code;
-        const count = airline.product_count || 0;
+        const count = airline.count || airline.product_count || 0;
         
         return `
             <div class="airline-item" 
@@ -253,9 +235,19 @@ function renderProducts(products) {
 // 渲染单个产品卡片
 function renderProductCard(product) {
     const price = product.price_increase || 0;
-    const rebate = product.rebate_ratio || '0';
+    const frontRebate = product.front_rebate_value || '';
+    const backRebate = product.back_rebate_value || '';
+    const agentFee = product.fixed_agent_fee || '';
     const ticketType = product.ticket_type || 'ALL';
-    const ticketTypeClass = ticketType.toLowerCase();
+    const ticketTypeClass = ticketType.toLowerCase().replace('/', ' ').split(' ')[0];
+    
+    // 构建返点显示
+    let rebateDisplay = '-';
+    let rebateParts = [];
+    if (frontRebate) rebateParts.push(`前${frontRebate}`);
+    if (backRebate) rebateParts.push(`后${backRebate}`);
+    if (agentFee) rebateParts.push(`定额${agentFee}`);
+    if (rebateParts.length > 0) rebateDisplay = rebateParts.join('+');
     
     return `
         <div class="product-card" onclick="toggleProductDetails(this)">
@@ -264,8 +256,8 @@ function renderProductCard(product) {
                 <div class="product-price">¥${price}</div>
             </div>
 
-            ${product.office_id ? `
-                <div class="product-office">Office: ${product.office_id}</div>
+            ${product.office ? `
+                <div class="product-office">Office: ${product.office}</div>
             ` : ''}
 
             <div class="product-basic-info">
@@ -279,33 +271,43 @@ function renderProductCard(product) {
                 </div>
                 <div class="info-item">
                     <div class="info-label">返点</div>
-                    <div class="info-value">${rebate}%</div>
+                    <div class="info-value">${rebateDisplay}</div>
                 </div>
             </div>
 
             <div class="product-details">
                 <div class="detail-row">
                     <span class="detail-label">航空公司:</span>
-                    <span class="detail-value">${product.airline || '-'}</span>
+                    <span class="detail-value">${product.airline || '-'} ${AIRLINE_NAMES[product.airline] || product.airline_name || ''}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">舱位详情:</span>
-                    <span class="detail-value">${product.cabin_class || '-'}</span>
+                    <span class="detail-value">${product.booking_class || '-'}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">有效期:</span>
-                    <span class="detail-value">${product.valid_from || '-'} 至 ${product.valid_until || '-'}</span>
+                    <span class="detail-value">${product.valid_start || ''}${product.valid_end ? ' 至 ' + product.valid_end : (product.valid_period || '-')}</span>
                 </div>
-                ${product.policy_identifier ? `
+                ${product.policy_code ? `
                     <div class="detail-row">
-                        <span class="detail-label">产品标识:</span>
-                        <span class="detail-value">${product.policy_identifier}</span>
+                        <span class="detail-label">运价标识:</span>
+                        <span class="detail-value">${product.policy_code}</span>
+                    </div>
+                ` : ''}
+
+                ${frontRebate || backRebate || agentFee ? `
+                    <div class="detail-row">
+                        <span class="detail-label">结算明细:</span>
+                        <span class="detail-value">${[
+                            frontRebate && `前返:${product.front_rebate_type}${frontRebate}`,
+                            backRebate && `后返:${product.back_rebate_type}${backRebate}`,
+                            agentFee && `代理费:${agentFee}`
+                        ].filter(Boolean).join(' | ') || '-'}</span>
                     </div>
                 ` : ''}
 
                 <div class="product-tags">
-                    <span class="tag ${ticketTypeClass}">${ticketType}</span>
-                    ${product.ticket_type_text ? `<span class="tag ${ticketTypeClass}">${product.ticket_type_text}</span>` : ''}
+                    ${ticketType.split('/').map(t => `<span class="tag ${t.trim().toLowerCase()}">${t.trim()}</span>`).join('')}
                 </div>
 
                 ${product.remarks ? `

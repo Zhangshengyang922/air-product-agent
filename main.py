@@ -57,9 +57,16 @@ app.add_middleware(
 # ============================================================================
 
 class Product:
-    """产品数据模型"""
-    def __init__(self, airline, product_name, route, booking_class, price_increase, rebate_ratio, office, remarks, valid_period, policy_code, settlement=''):
+    """产品数据模型（新格式5.28）"""
+    def __init__(self, airline, airline_name='', product_name='', route='', booking_class='', 
+                 price_increase='', rebate_ratio='', office='', remarks='', valid_period='', 
+                 policy_code='', settlement='', ticket_type='',
+                 front_rebate_type='', front_rebate_value='',
+                 back_rebate_type='', back_rebate_value='',
+                 fixed_agent_fee='', valid_start='', valid_end='',
+                 creator='', create_time=''):
         self.airline = airline
+        self.airline_name = airline_name
         self.product_name = product_name
         self.route = route
         self.booking_class = booking_class
@@ -70,10 +77,22 @@ class Product:
         self.valid_period = valid_period
         self.policy_code = policy_code
         self.settlement = settlement
+        self.ticket_type = ticket_type
+        # 新格式字段
+        self.front_rebate_type = front_rebate_type
+        self.front_rebate_value = front_rebate_value
+        self.back_rebate_type = back_rebate_type
+        self.back_rebate_value = back_rebate_value
+        self.fixed_agent_fee = fixed_agent_fee
+        self.valid_start = valid_start
+        self.valid_end = valid_end
+        self.creator = creator
+        self.create_time = create_time
 
     def to_dict(self):
         return {
             'airline': self.airline,
+            'airline_name': self.airline_name,
             'product_name': self.product_name,
             'route': self.route,
             'booking_class': self.booking_class,
@@ -83,7 +102,17 @@ class Product:
             'remarks': self.remarks,
             'valid_period': self.valid_period,
             'policy_code': self.policy_code,
-            'settlement': self.settlement
+            'settlement': self.settlement,
+            'ticket_type': self.ticket_type,
+            'front_rebate_type': self.front_rebate_type,
+            'front_rebate_value': self.front_rebate_value,
+            'back_rebate_type': self.back_rebate_type,
+            'back_rebate_value': self.back_rebate_value,
+            'fixed_agent_fee': self.fixed_agent_fee,
+            'valid_start': self.valid_start,
+            'valid_end': self.valid_end,
+            'creator': self.creator,
+            'create_time': self.create_time
         }
 
 # 全局数据存储
@@ -107,42 +136,92 @@ def load_products():
 
         print(f"[OK] 从CSV加载了 {len(df)} 行数据")
 
+        # 检测CSV格式（新格式用"航司"，旧格式用"航司代码"）
+        airline_col = '航司' if '航司' in df.columns else '航司代码'
+
         # 记录航司出现顺序（跳过说明文字行）
         airline_order = []
-        for idx, airline in enumerate(df['航司代码']):
+        for idx, airline in enumerate(df[airline_col]):
             airline_str = str(airline).strip()
-            # 跳过空行和说明文字行（以中文括号开头，或说明文字如"1、xxx"）
             if airline_str and not airline_str.startswith('（') and not airline_str.startswith('(') and airline_str not in airline_order:
-                # 跳过说明文字（以数字序号开头且后面是中文的，如"1、机+积分"）
                 if len(airline_str) > 2 and airline_str[0].isdigit() and airline_str[1] in '、.':
                     continue
                 airline_order.append(airline_str)
 
+        # 构建前返/后返显示字符串
+        def build_rebate(row):
+            parts = []
+            ft = str(row.get('前返计算方式', '')).strip()
+            fv = str(row.get('前返计算值', '')).strip()
+            bt = str(row.get('后返计算方式', '')).strip()
+            bv = str(row.get('后返计算值', '')).strip()
+            af = str(row.get('定额代理费', '')).strip()
+            if ft and fv:
+                parts.append(f"前返{ft}{fv}")
+            elif fv:
+                parts.append(fv)
+            if bt and bv:
+                parts.append(f"后返{bt}{bv}")
+            elif bv:
+                parts.append(bv)
+            if af:
+                parts.append(f"定额{af}")
+            if parts:
+                return '+'.join(parts)
+            # 兼容旧格式
+            return str(row.get('政策返点', '')).strip()
+
+        def build_settlement(row):
+            parts = []
+            ft = str(row.get('前返计算方式', '')).strip()
+            bt = str(row.get('后返计算方式', '')).strip()
+            af = str(row.get('定额代理费', '')).strip()
+            if ft: parts.append(f"前返-{ft}")
+            if bt: parts.append(f"后返-{bt}")
+            if af: parts.append(f"定额-{af}")
+            if parts:
+                return '+'.join(parts)
+            return str(row.get('航司结算方式', '')).strip()
+
         products = []
         for idx, row in df.iterrows():
             try:
-                airline = str(row.get('航司代码', '')).strip()
+                airline = str(row.get(airline_col, '')).strip()
+                airline_name = str(row.get('航司名称', '')).strip()
                 product_name = str(row.get('产品名称', '')).strip()
                 route = str(row.get('航线', '')).strip()
                 booking_class = str(row.get('订座舱位', '')).strip()
                 price_increase = str(row.get('上浮价格', '')).strip()
-                rebate_ratio = str(row.get('政策返点', '')).strip()
+                rebate_ratio = build_rebate(row)
                 office = str(row.get('出票OFFICE', '')).strip()
                 remarks = str(row.get('备注', '')).strip()
-                valid_period = str(row.get('产品有限期', '')).strip()
-                policy_code_val = row.get('产品代码', '')
+                # 新格式：有效开始日期 + 有效截止日期；旧格式：产品有限期
+                valid_start = str(row.get('有效开始日期', '')).strip()
+                valid_end = str(row.get('有效截止日期', '')).strip()
+                if valid_start or valid_end:
+                    valid_period = f"{valid_start} 至 {valid_end}".strip(' 至 ')
+                else:
+                    valid_period = str(row.get('产品有限期', '')).strip()
+                policy_code_val = row.get('运价标识', row.get('产品代码', ''))
                 policy_code = str(policy_code_val).strip() if pd.notna(policy_code_val) else ''
+                settlement = build_settlement(row)
+                ticket_type = str(row.get('票证类型', '')).strip()
+                # 新格式字段
+                front_rebate_type = str(row.get('前返计算方式', '')).strip()
+                front_rebate_value = str(row.get('前返计算值', '')).strip()
+                back_rebate_type = str(row.get('后返计算方式', '')).strip()
+                back_rebate_value = str(row.get('后返计算值', '')).strip()
+                fixed_agent_fee = str(row.get('定额代理费', '')).strip()
+                creator = str(row.get('创建人', '')).strip()
+                create_time = str(row.get('创建时间', '')).strip()
 
                 if product_name and airline and not airline.startswith('（') and not airline.startswith('('):
-                    # 跳过说明文字（以数字序号开头且后面是中文的，如"1、机+积分"）
                     if len(airline) > 2 and airline[0].isdigit() and airline[1] in '、.':
                         continue
-                    # 读取结算方式
-                    settlement = str(row.get('航司结算方式', '')).strip()
                     
-                    # 添加原始行号用于排序
                     product = Product(
                         airline=airline,
+                        airline_name=airline_name,
                         product_name=product_name,
                         route=route,
                         booking_class=booking_class,
@@ -152,7 +231,17 @@ def load_products():
                         remarks=remarks,
                         valid_period=valid_period,
                         policy_code=policy_code,
-                        settlement=settlement
+                        settlement=settlement,
+                        ticket_type=ticket_type,
+                        front_rebate_type=front_rebate_type,
+                        front_rebate_value=front_rebate_value,
+                        back_rebate_type=back_rebate_type,
+                        back_rebate_value=back_rebate_value,
+                        fixed_agent_fee=fixed_agent_fee,
+                        valid_start=valid_start,
+                        valid_end=valid_end,
+                        creator=creator,
+                        create_time=create_time
                     )
                     # 添加原始顺序属性
                     product._original_order = idx
@@ -213,8 +302,8 @@ async def startup_event():
 
 AIRLINE_NAMES = {
     '3U': '四川航空', '8L': '祥鹏航空', '9H': '长安航空',
-    'A6': '红土航空', 'BK': '奥凯航空', 'CA': '国航',
-    'CZ': '南航', 'DR': '桂林航空', 'DZ': '东海航空',
+    'A6': '湖南航空', 'BK': '奥凯航空', 'CA': '国航',
+    'CJ': '长龙航空', 'CZ': '南航', 'DR': '瑞丽航空', 'DZ': '东海航空',
     'EU': '成都航空', 'FU': '福州航空', 'G5': '华夏航空',
     'GJ': '长龙航空', 'GS': '天津航空', 'GX': '北部湾航空',
     'HO': '吉祥航空', 'HU': '海南航空', 'JD': '首都航空',
@@ -329,6 +418,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
+
                 <div class="data-panel">
                     <el-table :data="filteredProducts" border style="width:100%" stripe :cell-style="{padding:'3px'}" :header-cell-style="{padding:'3px',background:'#f5f7fa',height:'32px'}" :row-style="{height:'32px'}" size="mini" @row-click="handleRowClick" style="cursor:pointer">
                         <el-table-column prop="product_name" label="产品名称" min-width="120">
@@ -337,9 +427,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <span v-if="isNewProduct(scope.row)" class="tag-new">新</span>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="policy_code" label="政策代码" min-width="100" align="center">
+                        <el-table-column prop="policy_code" label="运价标识" min-width="100" align="center">
                             <template slot-scope="scope">
                                 <span class="tag-price">{{scope.row.policy_code || '-'}}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="ticket_type" label="票证" width="70" align="center">
+                            <template slot-scope="scope">
+                                <span :class="'tag-type '+scope.row.ticket_type" v-if="scope.row.ticket_type">{{scope.row.ticket_type}}</span>
+                                <span v-else>-</span>
                             </template>
                         </el-table-column>
                         <el-table-column prop="price_increase" label="价格" width="60" align="right">
@@ -347,16 +443,28 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 ¥{{scope.row.price_increase || 0}}
                             </template>
                         </el-table-column>
-                        <el-table-column prop="rebate_ratio" label="后返" width="70" align="center"></el-table-column>
-                        <el-table-column prop="settlement" label="结算方式" width="90" align="center">
+                        <el-table-column prop="front_rebate_value" label="前返" width="65" align="center">
                             <template slot-scope="scope">
-                                <span style="color:#e6a23c;font-size:11px">{{scope.row.settlement || '-'}}</span>
+                                <span v-if="scope.row.front_rebate_value" style="color:#67c23a;font-weight:bold">{{scope.row.front_rebate_value}}</span>
+                                <span v-else style="color:#c0c4cc">-</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="back_rebate_value" label="后返" width="65" align="center">
+                            <template slot-scope="scope">
+                                <span v-if="scope.row.back_rebate_value" style="color:#e6a23c;font-weight:bold">{{scope.row.back_rebate_value}}</span>
+                                <span v-else style="color:#c0c4cc">-</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="fixed_agent_fee" label="代理费" width="65" align="center">
+                            <template slot-scope="scope">
+                                <span v-if="scope.row.fixed_agent_fee" style="color:#409eff;font-weight:bold">{{scope.row.fixed_agent_fee}}</span>
+                                <span v-else style="color:#c0c4cc">-</span>
                             </template>
                         </el-table-column>
                         <el-table-column prop="route" label="航线" min-width="90"></el-table-column>
-                        <el-table-column prop="booking_class" label="订座舱位" min-width="110"></el-table-column>
-                        <el-table-column prop="remarks" label="备注" min-width="90"></el-table-column>
-                        <el-table-column prop="office" label="Office" min-width="110"></el-table-column>
+                        <el-table-column prop="booking_class" label="订座舱位" min-width="100"></el-table-column>
+                        <el-table-column prop="remarks" label="备注" min-width="80"></el-table-column>
+                        <el-table-column prop="office" label="Office" min-width="100"></el-table-column>
                         <el-table-column prop="valid_period" label="有效期" min-width="90"></el-table-column>
                     </el-table>
                     <el-empty v-if="filteredProducts.length===0" description="暂无数据"></el-empty>
@@ -407,15 +515,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script>
         const API_BASE = '';
         const AIRLINE_NAMES = {
-            'CA': '中国国际航空', 'MU': '中国东方航空', 'CZ': '中国南方航空', 'HU': '海南航空',
-            'FM': '上海航空', 'MF': '厦门航空', 'SC': '山东航空', 'ZH': '深圳航空',
-            '3U': '四川航空', 'KY': '昆明航空', 'BK': '奥凯航空', 'CN': '大新华航空',
-            'EU': '成都航空', 'G5': '华夏航空', 'GS': '天津航空', 'HO': '吉祥航空',
-            'JD': '首都航空', 'JR': '幸福航空', 'KN': '中国联合航空', 'NS': '河北航空',
-            'OQ': '重庆航空', 'QW': '青岛航空', 'RY': '江西航空', 'TV': '西藏航空',
-            'UQ': '乌鲁木齐航空', 'PN': '西部航空', '8L': '祥鹏航空', '9H': '长安航空',
-            'A6': '湖南航空', 'DR': '瑞丽航空', 'FU': '福州航空', 'GJ': '长龙航空',
-            'GX': '北部湾航空', 'DZ': '东海航空', 'LT': '龙江航空', 'GY': '多彩贵州'
+            '3U': '四川航空', '8L': '祥鹏航空', '9H': '长安航空', 'A6': '湖南航空',
+            'BK': '奥凯航空', 'CA': '中国国航', 'CJ': '长龙航空', 'CN': '大新华航空',
+            'CZ': '南方航空', 'DR': '瑞丽航空', 'DZ': '东海航空', 'EU': '成都航空',
+            'FM': '上海航空', 'FU': '福州航空', 'G5': '华夏航空', 'GJ': '长龙航空',
+            'GS': '天津航空', 'GX': '北部湾航空', 'GY': '多彩贵州', 'HO': '吉祥航空',
+            'HU': '海南航空', 'JD': '首都航空', 'JR': '幸福航空', 'KN': '中国联合航空',
+            'KY': '昆明航空', 'LT': '龙江航空', 'MF': '厦门航空', 'MU': '东方航空',
+            'NS': '河北航空', 'OQ': '重庆航空', 'PN': '西部航空', 'QW': '青岛航空',
+            'RY': '江西航空', 'SC': '山东航空', 'TV': '西藏航空', 'UQ': '乌鲁木齐航空',
+            'ZH': '深圳航空'
         };
 
         new Vue({
