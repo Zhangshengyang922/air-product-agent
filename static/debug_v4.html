@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>调试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #357abd; }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        pre {
+            margin: 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 V4版本调试页面</h1>
+
+    <div class="section">
+        <h3>1. 测试API连接</h3>
+        <button onclick="testHealth()">测试健康检查</button>
+        <button onclick="testStats()">测试统计</button>
+        <div id="result1" class="result">等待测试...</div>
+    </div>
+
+    <div class="section">
+        <h3>2. 测试航司列表</h3>
+        <button onclick="testAirlines()">获取航司列表</button>
+        <button onclick="testHUAirlines()">获取海南航空产品</button>
+        <div id="result2" class="result">等待测试...</div>
+    </div>
+
+    <div class="section">
+        <h3>3. 测试几个主要航司</h3>
+        <button onclick="testAirline('CA')">测试国航(CA)</button>
+        <button onclick="testAirline('MU')">测试东航(MU)</button>
+        <button onclick="testAirline('CZ')">测试南航(CZ)</button>
+        <button onclick="testAirline('HU')">测试海航(HU)</button>
+        <div id="result3" class="result">等待测试...</div>
+    </div>
+
+    <div class="section">
+        <h3>4. 测试搜索功能</h3>
+        <input type="text" id="searchKeyword" placeholder="输入搜索词..." style="padding:8px;margin-right:10px;">
+        <button onclick="testSearch()">搜索</button>
+        <div id="result4" class="result">等待测试...</div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showResult(id, data, isSuccess = true) {
+            const div = document.getElementById(id);
+            div.className = 'result ' + (isSuccess ? 'success' : 'error');
+            div.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                showResult('result1', {status: response.status, data}, response.ok);
+            } catch (error) {
+                showResult('result1', {error: error.message}, false);
+            }
+        }
+
+        async function testStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/stats`);
+                const data = await response.json();
+                showResult('result1', {status: response.status, data}, response.ok);
+            } catch (error) {
+                showResult('result1', {error: error.message}, false);
+            }
+        }
+
+        async function testAirlines() {
+            try {
+                const response = await fetch(`${API_BASE}/api/airlines`);
+                const data = await response.json();
+                showResult('result2', {
+                    count: data.data.airlines.length,
+                    airlines: data.data.airlines.slice(0, 10)
+                }, true);
+            } catch (error) {
+                showResult('result2', {error: error.message}, false);
+            }
+        }
+
+        async function testHUAirlines() {
+            try {
+                const response = await fetch(`${API_BASE}/api/airlines/HU`);
+                const data = await response.json();
+                showResult('result3', {
+                    airline: 'HU',
+                    count: data.data.count,
+                    first3: data.data.products.slice(0, 3)
+                }, true);
+            } catch (error) {
+                showResult('result3', {error: error.message}, false);
+            }
+        }
+
+        async function testAirline(code) {
+            try {
+                const response = await fetch(`${API_BASE}/api/airlines/${code}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    showResult('result3', {
+                        airline: code,
+                        count: data.data.count,
+                        products: data.data.products.slice(0, 2)
+                    }, true);
+                } else {
+                    showResult('result3', {error: data.message}, false);
+                }
+            } catch (error) {
+                showResult('result3', {airline: code, error: error.message}, false);
+            }
+        }
+
+        async function testSearch() {
+            const keyword = document.getElementById('searchKeyword').value;
+            if (!keyword) {
+                showResult('result4', {error: '请输入搜索词'}, false);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search?keyword=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+                showResult('result4', {
+                    keyword: keyword,
+                    count: data.data.count,
+                    products: data.data.products.slice(0, 3)
+                }, true);
+            } catch (error) {
+                showResult('result4', {error: error.message}, false);
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html>

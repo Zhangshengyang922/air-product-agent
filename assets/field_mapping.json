@@ -1,0 +1,11 @@
+{
+  "产品名称": "product_name",
+  "航线": "route",
+  "订座舱位": "booking_class",
+  "上浮价格": "price",
+  "做单": "rebate",
+  "运价标识": "price_code",
+  "出票OFFICE": "office",
+  "备注": "remarks",
+  "产品有限期": "validity"
+}

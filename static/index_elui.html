@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航空公司产品智能体</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #303133;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        /* 左侧航司列表 - Element UI Card 风格 */
+        .sidebar {
+            display: none;
+        }
+
+        /* Element UI 风格输入框 */
+        .search-box {
+            margin-bottom: 16px;
+        }
+
+        .el-input {
+            position: relative;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        .el-input__inner {
+            width: 100%;
+            height: 40px;
+            line-height: 40px;
+            padding: 0 15px;
+            background-color: #fff;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            color: #606266;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+        }
+
+        .el-input__inner:hover {
+            border-color: #c0c4cc;
+        }
+
+        .el-input__inner:focus {
+            border-color: #409eff;
+        }
+
+        .el-input__inner::placeholder {
+            color: #c0c4cc;
+        }
+
+        .airline-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        /* Element UI 列表项风格 */
+        .airline-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background-color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .airline-item:hover {
+            background-color: #f5f7fa;
+        }
+
+        .airline-item.active {
+            background-color: #ecf5ff;
+            border-color: #b3d8ff;
+            color: #409eff;
+        }
+
+        .airline-code {
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 48px;
+            color: #606266;
+        }
+
+        .airline-item.active .airline-code {
+            color: #409eff;
+        }
+
+        .airline-name {
+            flex: 1;
+            font-size: 14px;
+            color: #606266;
+            margin-left: 12px;
+        }
+
+        .airline-item.active .airline-name {
+            color: #409eff;
+        }
+
+        /* 右侧内容区 */
+        .main-content {
+            width: 100%;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            min-height: calc(100vh - 40px);
+        }
+
+        /* 筛选栏 - 使用select布局 */
+        .filter-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ebeef5;
+        }
+
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            color: #606266;
+            font-weight: 500;
+        }
+
+        .el-select {
+            width: 100%;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #ebeef5;
+        }
+
+        .content-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #303133;
+        }
+
+        .content-stats {
+            font-size: 14px;
+            color: #909399;
+        }
+
+        /* Element UI 筛选器区域 */
+        .filter-section {
+            margin-bottom: 20px;
+        }
+
+        .filter-section-title {
+            font-size: 14px;
+            color: #606266;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* Element UI Select 风格 */
+        .el-select {
+            display: inline-block;
+            position: relative;
+        }
+
+        .el-select .el-input__inner {
+            cursor: pointer;
+            padding-right: 30px;
+        }
+
+        .el-select__caret {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #c0c4cc;
+            font-size: 14px;
+            transition: transform 0.3s;
+            pointer-events: none;
+        }
+
+        .el-select:hover .el-select__caret {
+            color: #909399;
+        }
+
+        /* Select 下拉框 */
+        .el-select-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            background-color: #fff;
+            border: 1px solid #e4e7ed;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            max-height: 274px;
+            display: none;
+        }
+
+        .el-select-dropdown.visible {
+            display: block;
+        }
+
+        .el-select-dropdown__search {
+            padding: 8px;
+            border-bottom: 1px solid #ebeef5;
+        }
+
+        .el-select-dropdown__search input {
+            width: 100%;
+            height: 32px;
+            line-height: 32px;
+            padding: 0 15px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+            color: #606266;
+        }
+
+        .el-select-dropdown__search input:focus {
+            border-color: #409eff;
+        }
+
+        .el-select-dropdown__search input::placeholder {
+            color: #c0c4cc;
+        }
+
+        .el-select-dropdown__list {
+            list-style: none;
+            margin: 0;
+            padding: 6px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .el-select-dropdown__list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .el-select-dropdown__list::-webkit-scrollbar-thumb {
+            background: #dcdfe6;
+            border-radius: 3px;
+        }
+
+        .el-select-dropdown__list::-webkit-scrollbar-track {
+            background: #f5f7fa;
+        }
+
+        .el-select-dropdown__item {
+            padding: 0 20px;
+            height: 34px;
+            line-height: 34px;
+            font-size: 14px;
+            color: #606266;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .el-select-dropdown__item:hover {
+            background-color: #f5f7fa;
+        }
+
+        .el-select-dropdown__item.selected {
+            color: #409eff;
+            font-weight: 700;
+        }
+
+        .el-select-dropdown__item.disabled {
+            color: #c0c4cc;
+            cursor: not-allowed;
+        }
+
+        .el-select-dropdown__empty {
+            padding: 10px 0;
+            margin: 0;
+            text-align: center;
+            color: #909399;
+            font-size: 14px;
+        }
+
+        /* Element UI 标签风格 */
+        .el-tag {
+            display: inline-block;
+            height: 32px;
+            padding: 0 12px;
+            line-height: 30px;
+            font-size: 13px;
+            color: #409eff;
+            border: 1px solid #d9ecff;
+            background-color: #ecf5ff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .el-tag:hover {
+            background-color: #409eff;
+            border-color: #409eff;
+            color: #fff;
+        }
+
+        .el-tag.active {
+            background-color: #409eff;
+            border-color: #409eff;
+            color: #fff;
+        }
+
+        .el-tag.el-tag--info {
+            background-color: #f4f4f5;
+            border-color: #e9e9eb;
+            color: #909399;
+        }
+
+        .el-tag.el-tag--success {
+            background-color: #f0f9eb;
+            border-color: #e1f3d8;
+            color: #67c23a;
+        }
+
+        .el-tag.el-tag--warning {
+            background-color: #fdf6ec;
+            border-color: #faecd8;
+            color: #e6a23c;
+        }
+
+        .el-tag.el-tag--danger {
+            background-color: #fef0f0;
+            border-color: #fde2e2;
+            color: #f56c6c;
+        }
+
+        /* Element UI 表格风格 */
+        .el-table {
+            width: 100%;
+            font-size: 14px;
+            color: #606266;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+
+        .el-table th {
+            background-color: #f5f7fa;
+            color: #909399;
+            font-weight: bold;
+            text-align: left !important;
+            padding: 8px 12px !important;
+            border: 1px solid #ebeef5;
+            font-size: 13px;
+        }
+
+        .el-table td {
+            padding: 8px 12px !important;
+            border: 1px solid #ebeef5;
+            font-size: 13px;
+        }
+
+        .el-table td,
+        .el-table th {
+            text-align: left;
+        }
+
+        .el-table tr {
+            transition: background-color 0.25s ease;
+        }
+
+        .el-table tr:hover > td {
+            background-color: #f5f7fa;
+        }
+
+        .el-table .el-table__expanded-cell {
+            background-color: #fafafa;
+        }
+
+        .el-table .el-table__expand-icon {
+            cursor: pointer;
+            transition: transform 0.3s;
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            color: #c0c4cc;
+        }
+
+        .el-table .el-table__expand-icon:hover {
+            color: #409eff;
+        }
+
+        .el-table .expanded .el-table__expand-icon {
+            transform: rotate(90deg);
+        }
+
+        /* 移除不需要的样式 */
+        .airline-list,
+        .airline-item,
+        .airline-code,
+        .airline-name,
+        .filter-section,
+        .filter-section-title,
+        .filter-group {
+            display: none !important;
+        }
+
+        /* 展开行内容 */
+        .expand-content {
+            padding: 16px 20px;
+            background-color: #fafafa;
+        }
+
+        .expand-section {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px dashed #ebeef5;
+        }
+
+        .expand-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .expand-section-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #409eff;
+            margin-bottom: 12px;
+        }
+
+        .expand-row {
+            display: flex;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .expand-label {
+            width: 100px;
+            color: #909399;
+            flex-shrink: 0;
+        }
+
+        .expand-value {
+            color: #606266;
+            flex: 1;
+            word-break: break-all;
+        }
+
+        /* 表格单元格 */
+        .cell-price {
+            font-size: 14px;
+            font-weight: 500;
+            color: #f56c6c;
+        }
+
+        .cell-rebate {
+            color: #67c23a;
+        }
+
+        .cell-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid;
+        }
+
+        .cell-tag--all {
+            background-color: #ecf5ff;
+            border-color: #d9ecff;
+            color: #409eff;
+        }
+
+        .cell-tag--gp {
+            background-color: #f0f9eb;
+            border-color: #e1f3d8;
+            color: #67c23a;
+        }
+
+        .cell-tag--bsp {
+            background-color: #fdf6ec;
+            border-color: #faecd8;
+            color: #e6a23c;
+        }
+
+        .cell-tag--b2b {
+            background-color: #fef0f0;
+            border-color: #fde2e2;
+            color: #f56c6c;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 80px 0;
+            color: #909399;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #606266;
+        }
+
+        .empty-state small {
+            font-size: 14px;
+            color: #c0c4cc;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 80px 0;
+            color: #606266;
+        }
+
+        .el-loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            margin-bottom: 16px;
+        }
+
+        .el-loading-spinner svg {
+            width: 40px;
+            height: 40px;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .el-loading-spinner .path {
+            stroke: #409eff;
+            stroke-width: 3;
+            stroke-linecap: round;
+            fill: none;
+            animation: dash 1.5s ease-in-out infinite;
+        }
+
+        @keyframes dash {
+            0% {
+                stroke-dasharray: 1, 150;
+                stroke-dashoffset: 0;
+            }
+            50% {
+                stroke-dasharray: 90, 150;
+                stroke-dashoffset: -35;
+            }
+            100% {
+                stroke-dasharray: 90, 150;
+                stroke-dashoffset: -124;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .el-table {
+                font-size: 12px;
+            }
+
+            .el-table th.el-table__cell,
+            .el-table td.el-table__cell {
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 主内容区 -->
+        <div class="main-content" style="width: 100%;">
+            <div class="content-header">
+                <div class="content-title">全部产品</div>
+                <div class="content-stats">
+                    共 <span id="productsCount">0</span> 个产品
+                    <button id="logoutBtn" onclick="handleLogout()" style="margin-left: 20px; padding: 6px 16px; background: #f56c6c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        🚪 登出
+                    </button>
+                </div>
+            </div>
+
+            <!-- 筛选栏 -->
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <div class="filter-label">航空公司</div>
+                    <div class="el-select el-select--filterable" id="airlineSelectWrapper">
+                        <input type="text" class="el-input__inner" id="airlineSelectInput" placeholder="请选择航空公司" readonly>
+                        <span class="el-select__caret">▼</span>
+                        <div class="el-select-dropdown" id="airlineDropdown">
+                            <div class="el-select-dropdown__search">
+                                <input type="text" id="airlineSearchInput" placeholder="请输入关键字搜索">
+                            </div>
+                            <ul class="el-select-dropdown__list" id="airlineDropdownList"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <div class="filter-label">票证类型</div>
+                    <div class="el-select">
+                        <select id="ticketTypeSelect" class="el-input__inner">
+                            <option value="">全部</option>
+                            <option value="ALL">所有</option>
+                            <option value="GP">GP</option>
+                            <option value="BSP">BSP</option>
+                            <option value="B2B">B2B</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <div class="filter-label">舱位等级</div>
+                    <div class="el-select">
+                        <select id="cabinClassSelect" class="el-input__inner">
+                            <option value="">全部</option>
+                            <option value="ECONOMY">经济舱</option>
+                            <option value="BUSINESS">商务舱</option>
+                            <option value="FIRST">头等舱</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <div class="filter-label">产品类型</div>
+                    <div class="el-select">
+                        <select id="productTypeSelect" class="el-input__inner">
+                            <option value="">全部</option>
+                            <option value="常规产品">常规</option>
+                            <option value="贵宾室服务">贵宾室</option>
+                            <option value="变更服务">变更</option>
+                            <option value="伴手礼服务">伴手礼</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <div class="filter-label">Office号</div>
+                    <div class="el-select">
+                        <select id="officeSelect" class="el-input__inner">
+                            <option value="">全部</option>
+                            <option value="KMG319">KMG319</option>
+                            <option value="CTU152">CTU152</option>
+                            <option value="SZX146">SZX146</option>
+                            <option value="KMG279">KMG279</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 产品表格 -->
+            <div id="productsContainer" style="margin-top: 20px;">
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <p>正在加载产品数据...</p>
+                </div>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="el-loading-spinner">
+                    <svg viewBox="0 0 50 50">
+                        <circle class="path" cx="25" cy="25" r="20"></circle>
+                    </svg>
+                </div>
+                <p>加载中...</p>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="el-loading-spinner">
+                    <svg viewBox="0 0 50 50">
+                        <circle class="path" cx="25" cy="25" r="20"></circle>
+                    </svg>
+                </div>
+                <p>加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 立即检查登录状态(页面加载前) ====================
+        (function() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                // 未登录,立即跳转到登录页
+                window.location.href = '/login';
+            }
+        })();
+
+        // ==================== 全局变量 ====================
+        const API_BASE = '';
+
+        const AIRLINE_NAMES = {
+            'CA': '中国国际航空', 'MU': '中国东方航空', 'CZ': '中国南方航空',
+            'HU': '海南航空', 'FM': '上海航空', 'MF': '厦门航空',
+            'SC': '山东航空', 'ZH': '深圳航空', '3U': '四川航空',
+            'KY': '昆明航空', 'BK': '奥凯航空', 'CN': '大新华航空',
+            'EU': '成都航空', 'G5': '华夏航空', 'GS': '桂林航空',
+            'HO': '吉祥航空', 'JD': '首都航空', 'JR': '幸福航空',
+            'KN': '中国联合航空', 'NS': '河北航空', 'OQ': '重庆航空',
+            'QW': '青岛航空', 'RY': '江西航空', 'TV': '西藏航空',
+            'UQ': '乌鲁木齐航空', 'PN': '西部航空', '8L': '祥鹏航空',
+            '9H': '长安航空', 'A6': '湖南航空', 'DR': '瑞丽航空',
+            'FU': '福州航空', 'GJ': '长龙航空', 'GX': '北部湾航空',
+            'DZ': '东海航空'
+        };
+
+        let allAirlines = [];
+        let currentProducts = [];
+        let selectedAirline = '';
+        let selectedTicketType = '';
+        let selectedCabinClass = '';
+        let selectedProductType = '';
+        let selectedOffice = '';
+        let airlineDropdownOpen = false;
+
+        // 舱位等级定义
+        const CABIN_CLASSES = {
+            'ECONOMY': ['Y', 'B', 'M', 'H', 'K', 'L', 'Q', 'T', 'X', 'U', 'E', 'W', 'S', 'N', 'R'], // 经济舱
+            'BUSINESS': ['C', 'D', 'I', 'Z', 'J'], // 商务舱
+            'FIRST': ['F', 'A', 'P'] // 头等舱
+        };
+
+        // 判断舱位等级
+        function getCabinClassLevel(bookingClass) {
+            if (!bookingClass) return null;
+            const bc = bookingClass.toUpperCase();
+            
+            for (const [level, classes] of Object.entries(CABIN_CLASSES)) {
+                if (classes.includes(bc)) {
+                    return level;
+                }
+            }
+            return null;
+        }
+
+        // ==================== 工具函数 ====================
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function log(message) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+        }
+
+        // ==================== API调用 ====================
+        // ==================== API 请求封装 ====================
+        async function fetchAPI(url, options = {}) {
+            // 获取token
+            const token = localStorage.getItem('authToken');
+            
+            // 添加Authorization header
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+            
+            // 检查是否需要重新登录
+            if (response.status === 401) {
+                // 清除无效的token
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('rememberedUser');
+                // 跳转到登录页面
+                window.location.href = '/login';
+                return null;
+            }
+            
+            return await response.json();
+        }
+
+        // ==================== 登出 ====================
+        async function handleLogout() {
+            if (confirm('确定要登出吗?')) {
+                try {
+                    // 调用登出API
+                    await fetchAPI(`${API_BASE}/api/logout`, { method: 'POST' });
+                } catch (error) {
+                    console.error('登出API调用失败:', error);
+                } finally {
+                    // 清除本地存储
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('rememberedUser');
+                    // 跳转到登录页
+                    window.location.href = '/login';
+                }
+            }
+        }
+
+        // ==================== 产品类型识别 ====================
+        function identifyProductType(product) {
+            const productName = (product.product_name || '').toLowerCase();
+            if (productName.includes('贵宾室')) return '贵宾室服务';
+            if (productName.includes('变更') || productName.includes('改期')) return '变更服务';
+            if (productName.includes('伴手礼')) return '伴手礼服务';
+            if (productName.includes('专车')) return '专车服务';
+            if (productName.includes('门票')) return '门票服务';
+            if (productName.includes('经济舱')) return '经济舱产品';
+            if (productName.includes('商务舱')) return '商务舱产品';
+            if (productName.includes('头等舱')) return '头等舱产品';
+            return '常规产品';
+        }
+
+        // ==================== 初始化 ====================
+        async function initApp() {
+            log('🚀 开始初始化应用');
+            log(`🌐 服务器地址: ${window.location.origin}${API_BASE}`);
+            showLoading();
+
+            try {
+                // 检查服务器健康状态
+                try {
+                    const healthResponse = await fetch(`${API_BASE}/health`, {
+                        method: 'GET',
+                        cache: 'no-cache'
+                    });
+
+                    if (healthResponse.ok) {
+                        const healthData = await healthResponse.json();
+                        log('✅ 服务器健康检查通过');
+                        log(`   状态: ${healthData.status}`);
+                        log(`   消息: ${healthData.message}`);
+                    } else {
+                        log('⚠️ 服务器响应异常: ' + healthResponse.status);
+                    }
+                } catch (healthError) {
+                    log('❌ 无法连接到服务器: ' + healthError.message);
+                    log('   请检查服务是否已启动');
+                    log('   预期地址: http://localhost:8000');
+                }
+
+                initEventListeners();
+                await loadAirlines();
+                await selectAirline('');
+                log('✅ 应用初始化完成');
+            } catch (error) {
+                log('❌ 初始化失败: ' + error.message);
+                console.error(error);
+                alert('加载失败，请刷新页面重试');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ==================== 加载航司列表 ====================
+        async function loadAirlines() {
+            log('📡 加载航司列表');
+            try {
+                const data = await fetchAPI(`${API_BASE}/api/airlines`);
+                if (data.success && data.data.airlines) {
+                    allAirlines = data.data.airlines;
+                    renderAirlines();
+                    log(`✅ 已加载 ${allAirlines.length} 个航司`);
+                } else {
+                    throw new Error(data.message || '加载失败');
+                }
+            } catch (error) {
+                log('❌ 加载航司列表失败');
+                throw error;
+            }
+        }
+
+        // ==================== 渲染航司列表 ====================
+        function renderAirlines() {
+            log(`🎨 渲染航司列表`);
+            updateAirlineDropdown('');
+
+            const input = document.getElementById('airlineSelectInput');
+            if (input) {
+                if (selectedAirline) {
+                    const airline = allAirlines.find(a => a.code === selectedAirline);
+                    if (airline) {
+                        const name = AIRLINE_NAMES[airline.code] || airline.name || airline.code;
+                        input.value = `${airline.code} - ${name}`;
+                    }
+                } else {
+                    input.value = '';
+                }
+            }
+        }
+
+        // ==================== 更新航司下拉框 ====================
+        function updateAirlineDropdown(searchText) {
+            const list = document.getElementById('airlineDropdownList');
+
+            if (!searchText) {
+                // 无搜索时显示全部
+                list.innerHTML = `
+                    <li class="el-select-dropdown__item ${!selectedAirline ? 'selected' : ''}" data-value="">
+                        全部
+                    </li>
+                    ${allAirlines.map(airline => {
+                        const name = AIRLINE_NAMES[airline.code] || airline.name || airline.code;
+                        return `<li class="el-select-dropdown__item ${selectedAirline === airline.code ? 'selected' : ''}" data-value="${airline.code}">${airline.code} - ${name}</li>`;
+                    }).join('')}
+                `;
+            } else {
+                // 搜索过滤
+                const filtered = allAirlines.filter(airline => {
+                    const code = airline.code.toLowerCase();
+                    const name = (AIRLINE_NAMES[airline.code] || airline.name || '').toLowerCase();
+                    const search = searchText.toLowerCase();
+                    return code.includes(search) || name.includes(search);
+                });
+
+                if (filtered.length === 0) {
+                    list.innerHTML = `<li class="el-select-dropdown__empty">无匹配数据</li>`;
+                } else {
+                    list.innerHTML = `
+                        <li class="el-select-dropdown__item ${!selectedAirline ? 'selected' : ''}" data-value="">
+                            全部
+                        </li>
+                        ${filtered.map(airline => {
+                            const name = AIRLINE_NAMES[airline.code] || airline.name || airline.code;
+                            return `<li class="el-select-dropdown__item ${selectedAirline === airline.code ? 'selected' : ''}" data-value="${airline.code}">${airline.code} - ${name}</li>`;
+                        }).join('')}
+                    `;
+                }
+            }
+
+            // 添加点击事件
+            const items = list.querySelectorAll('.el-select-dropdown__item');
+            items.forEach(item => {
+                if (!item.classList.contains('disabled')) {
+                    item.addEventListener('click', function() {
+                        const value = this.getAttribute('data-value');
+                        selectAirline(value);
+                        closeAirlineDropdown();
+                    });
+                }
+            });
+        }
+
+        // ==================== 打开航司下拉框 ====================
+        function openAirlineDropdown() {
+            const dropdown = document.getElementById('airlineDropdown');
+            dropdown.classList.add('visible');
+            airlineDropdownOpen = true;
+            const searchInput = document.getElementById('airlineSearchInput');
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            updateAirlineDropdown('');
+        }
+
+        // ==================== 关闭航司下拉框 ====================
+        function closeAirlineDropdown() {
+            const dropdown = document.getElementById('airlineDropdown');
+            dropdown.classList.remove('visible');
+            airlineDropdownOpen = false;
+        }
+
+        // ==================== 切换航司下拉框 ====================
+        function toggleAirlineDropdown() {
+            if (airlineDropdownOpen) {
+                closeAirlineDropdown();
+            } else {
+                openAirlineDropdown();
+            }
+        }
+
+        // ==================== 选择航司 ====================
+        async function selectAirline(code) {
+            log(`✈️ 选择航司: ${code || '全部'}`);
+            selectedAirline = code;
+
+            // 更新输入框显示
+            const input = document.getElementById('airlineSelectInput');
+            if (input) {
+                if (code) {
+                    const airline = allAirlines.find(a => a.code === code);
+                    if (airline) {
+                        const name = AIRLINE_NAMES[airline.code] || airline.name || airline.code;
+                        input.value = `${airline.code} - ${name}`;
+                    }
+                } else {
+                    input.value = '';
+                }
+            }
+
+            showLoading();
+            log(`📡 加载全部航司产品`);
+
+            try {
+                const data = await fetchAPI(`${API_BASE}/api/products`);
+                if (data.success && data.data.products) {
+                    currentProducts = data.data.products;
+                    const filtered = filterProducts(currentProducts);
+                    renderProducts(filtered);
+                    log(`✅ 已加载 ${data.data.count} 个产品`);
+                } else {
+                    throw new Error(data.message || '加载失败');
+                }
+            } catch (error) {
+                log('❌ 加载产品失败');
+                alert('加载产品失败: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ==================== 筛选产品 ====================
+        function filterProducts(products) {
+            log(`🔍 筛选产品 (航司: "${selectedAirline}", 票证类型: "${selectedTicketType}", 舱位等级: "${selectedCabinClass}", 产品类型: "${selectedProductType}", Office: "${selectedOffice}")`);
+            let filtered = [...products];
+
+            if (selectedAirline) {
+                filtered = filtered.filter(p => {
+                    return p.airline === selectedAirline;
+                });
+            }
+
+            if (selectedTicketType) {
+                filtered = filtered.filter(p => {
+                    if (!p.ticket_type) return false;
+                    return p.ticket_type.toUpperCase() === selectedTicketType;
+                });
+            }
+
+            if (selectedCabinClass) {
+                filtered = filtered.filter(p => {
+                    if (!p.booking_class) return false;
+                    const cabinLevel = getCabinClassLevel(p.booking_class);
+                    return cabinLevel === selectedCabinClass;
+                });
+            }
+
+            if (selectedProductType) {
+                filtered = filtered.filter(p => {
+                    const productType = identifyProductType(p);
+                    return productType === selectedProductType;
+                });
+            }
+
+            if (selectedOffice) {
+                filtered = filtered.filter(p => {
+                    const office = p.office || '';
+                    return office.includes(selectedOffice);
+                });
+            }
+
+            log(`✅ 筛选后剩余 ${filtered.length} 个产品`);
+            return filtered;
+        }
+
+        // ==================== 渲染产品表格 ====================
+        function renderProducts(products) {
+            log(`🎨 渲染产品表格 (${products.length} 个)`);
+            const container = document.getElementById('productsContainer');
+            const countSpan = document.getElementById('productsCount');
+            countSpan.textContent = products.length;
+
+            if (!products || products.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📦</div>
+                        <p>暂无产品数据</p>
+                        <small>尝试选择其他航司或调整筛选条件</small>
+                    </div>
+                `;
+                return;
+            }
+
+            const ticketType = products[0].ticket_type || 'ALL';
+            const ticketTypeDisplay = ticketType === 'ALL' ? '所有' : ticketType;
+
+            container.innerHTML = `
+                <table class="el-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th style="width: 80px;">航空公司</th>
+                            <th style="width: 180px;">产品名称</th>
+                            <th style="width: 70px;">舱位</th>
+                            <th style="width: 100px;">政策代码</th>
+                            <th style="width: 100px;">上浮价格</th>
+                            <th style="width: 80px;">政策返点</th>
+                            <th style="width: 90px;">出票Office</th>
+                            <th style="width: 200px;">备注</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${products.map((product, index) => renderTableRow(product, index, ticketTypeDisplay)).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // ==================== 渲染表格行 ====================
+        function renderTableRow(product, index, ticketTypeDisplay) {
+            const price = product.price_increase || 0;
+            const rebate = product.rebate_ratio || '-';
+            const office = product.office || '-';
+            const route = product.route || '-';
+            const bookingClass = product.booking_class || '-';
+            const policyCode = product.policy_code || '-';
+            const policyId = product.policy_identifier || '-';
+            const validPeriod = product.valid_period || '';
+            const remarks = product.remarks || '';
+
+            const priceText = typeof price === 'number' ? `¥${Math.abs(price)}` : price;
+            const priceType = price < 0 ? '下浮' : '上浮';
+
+            let validPeriodDisplay = '长期';
+            if (validPeriod && validPeriod !== '-' && validPeriod.trim() !== '') {
+                validPeriodDisplay = validPeriod.trim();
+            }
+
+            // 舱位显示样式
+            let cabinClassDisplay = bookingClass;
+            let cabinClassStyle = '';
+            
+            // 根据舱位类型设置不同颜色
+            if (bookingClass) {
+                const upperBookingClass = bookingClass.toUpperCase();
+                if (['Y', 'B', 'M', 'H', 'K', 'L', 'Q', 'T', 'X', 'U', 'E', 'W', 'S', 'N', 'R'].includes(upperBookingClass)) {
+                    cabinClassStyle = 'color: #67c23a; font-weight: 500;'; // 经济舱 - 绿色
+                } else if (['C', 'D', 'I', 'Z', 'J'].includes(upperBookingClass)) {
+                    cabinClassStyle = 'color: #e6a23c; font-weight: 500;'; // 商务舱 - 橙色
+                } else if (['F', 'A', 'P'].includes(upperBookingClass)) {
+                    cabinClassStyle = 'color: #f56c6c; font-weight: 500;'; // 头等舱 - 红色
+                } else {
+                    cabinClassStyle = 'color: #909399; font-weight: 500;'; // 其他 - 灰色
+                }
+            }
+
+            return `
+                <tr data-index="${index}" class="product-row">
+                    <td style="text-align: center;">
+                        <span class="el-table__expand-icon" onclick="toggleExpand(${index})">▶</span>
+                    </td>
+                    <td style="text-align: left;">
+                        <div style="font-weight: 500; color: #303133;">${product.airline || '-'}</div>
+                    </td>
+                    <td style="text-align: left;">
+                        <div style="font-weight: 500; color: #303133;">${product.product_name || '-'}</div>
+                    </td>
+                    <td style="text-align: left;">
+                        <div style="${cabinClassStyle}">${cabinClassDisplay || '-'}</div>
+                    </td>
+                    <td style="text-align: left;">
+                        <div style="font-weight: 500; color: #409eff;">${policyCode && policyCode !== '-' ? policyCode : '-'}</div>
+                    </td>
+                    <td style="text-align: left;">
+                        <div class="cell-price">${priceText} <span style="font-size: 12px; color: #909399; font-weight: normal;">(${priceType})</span></div>
+                    </td>
+                    <td style="text-align: left;" class="cell-rebate">${rebate}</td>
+                    <td style="text-align: left;">
+                        <div style="font-weight: 500; color: #606266;">${office}</div>
+                    </td>
+                    <td style="text-align: left;">
+                        <div style="color: #606266; font-size: 13px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${remarks}">${remarks || '-'}</div>
+                    </td>
+                </tr>
+                <tr class="expand-row" id="expand-${index}" style="display: none;">
+                    <td colspan="9" class="el-table__expanded-cell">
+                        <div class="expand-content">
+                            <div class="expand-section">
+                                <div class="expand-section-title">基本信息</div>
+                                <div class="expand-row"><span class="expand-label">航空公司:</span><span class="expand-value">${product.airline || '-'}</span></div>
+                                <div class="expand-row"><span class="expand-label">产品名称:</span><span class="expand-value">${product.product_name || '-'}</span></div>
+                                <div class="expand-row"><span class="expand-label">航线:</span><span class="expand-value">${route}</span></div>
+                                <div class="expand-row"><span class="expand-label">订座舱位:</span><span class="expand-value">${bookingClass}</span></div>
+                                <div class="expand-row"><span class="expand-label">上浮价格:</span><span class="expand-value">${priceText} (${priceType})</span></div>
+                                <div class="expand-row"><span class="expand-label">政策返点:</span><span class="expand-value">${rebate}</span></div>
+                            </div>
+                            <div class="expand-section">
+                                <div class="expand-section-title">票务信息</div>
+                                <div class="expand-row"><span class="expand-label">票证类型:</span><span class="expand-value">${ticketTypeDisplay}</span></div>
+                                <div class="expand-row"><span class="expand-label">出票Office:</span><span class="expand-value">${office}</span></div>
+                                <div class="expand-row"><span class="expand-label">有效期:</span><span class="expand-value">${validPeriodDisplay || '长期'}</span></div>
+                                ${policyCode && policyCode !== '-' ? `<div class="expand-row"><span class="expand-label">政策代码:</span><span class="expand-value">${policyCode}</span></div>` : ''}
+                                ${policyId && policyId !== '-' && policyId !== policyCode ? `<div class="expand-row"><span class="expand-label">产品标识:</span><span class="expand-value">${policyId}</span></div>` : ''}
+                            </div>
+                            ${remarks && remarks !== '-' ? `
+                                <div class="expand-section">
+                                    <div class="expand-section-title">备注</div>
+                                    <div style="color: #606266; line-height: 1.8; white-space: pre-wrap;">${remarks}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // ==================== 切换展开行 ====================
+        function toggleExpand(index) {
+            const expandRow = document.getElementById(`expand-${index}`);
+            const productRow = document.querySelector(`.product-row[data-index="${index}"]`);
+            const expandIcon = productRow.querySelector('.el-table__expand-icon');
+
+            if (expandRow.style.display === 'none') {
+                expandRow.style.display = 'table-row';
+                productRow.classList.add('expanded');
+                expandIcon.innerHTML = '▼';
+            } else {
+                expandRow.style.display = 'none';
+                productRow.classList.remove('expanded');
+                expandIcon.innerHTML = '▶';
+            }
+        }
+
+        // ==================== 更新标题 ====================
+        function updateTitle(title) {
+            const titleElement = document.querySelector('.content-title');
+            if (titleElement) {
+                titleElement.textContent = title;
+            }
+        }
+
+        // ==================== 初始化事件监听 ====================
+        function initEventListeners() {
+            // 航司选择 - 输入框点击
+            const airlineSelectWrapper = document.getElementById('airlineSelectWrapper');
+            const airlineSelectInput = document.getElementById('airlineSelectInput');
+            const airlineSearchInput = document.getElementById('airlineSearchInput');
+
+            if (airlineSelectWrapper && airlineSelectInput && airlineSearchInput) {
+                airlineSelectInput.addEventListener('click', toggleAirlineDropdown);
+
+                // 航司搜索
+                airlineSearchInput.addEventListener('input', function(e) {
+                    updateAirlineDropdown(e.target.value);
+                });
+
+                // 点击外部关闭下拉框
+                document.addEventListener('click', function(e) {
+                    if (!airlineSelectWrapper.contains(e.target)) {
+                        closeAirlineDropdown();
+                    }
+                });
+            }
+
+            // 票证类型筛选
+            const ticketTypeSelect = document.getElementById('ticketTypeSelect');
+            if (ticketTypeSelect) {
+                ticketTypeSelect.addEventListener('change', function(e) {
+                    selectedTicketType = e.target.value;
+                    log(`选择票证类型: "${selectedTicketType || '全部'}"`);
+                    if (currentProducts.length > 0) {
+                        const filtered = filterProducts(currentProducts);
+                        renderProducts(filtered);
+                    }
+                });
+            }
+
+            // 舱位等级筛选
+            const cabinClassSelect = document.getElementById('cabinClassSelect');
+            if (cabinClassSelect) {
+                cabinClassSelect.addEventListener('change', function(e) {
+                    selectedCabinClass = e.target.value;
+                    log(`选择舱位等级: "${selectedCabinClass || '全部'}"`);
+                    if (currentProducts.length > 0) {
+                        const filtered = filterProducts(currentProducts);
+                        renderProducts(filtered);
+                    }
+                });
+            }
+
+            // 产品类型筛选
+            const productTypeSelect = document.getElementById('productTypeSelect');
+            if (productTypeSelect) {
+                productTypeSelect.addEventListener('change', function(e) {
+                    selectedProductType = e.target.value;
+                    log(`选择产品类型: "${selectedProductType || '全部'}"`);
+                    if (currentProducts.length > 0) {
+                        const filtered = filterProducts(currentProducts);
+                        renderProducts(filtered);
+                    }
+                });
+            }
+
+            // Office号筛选
+            const officeSelect = document.getElementById('officeSelect');
+            if (officeSelect) {
+                officeSelect.addEventListener('change', function(e) {
+                    selectedOffice = e.target.value;
+                    log(`选择Office号: "${selectedOffice || '全部'}"`);
+                    if (currentProducts.length > 0) {
+                        const filtered = filterProducts(currentProducts);
+                        renderProducts(filtered);
+                    }
+                });
+            }
+
+            log('✅ 事件监听器初始化完成');
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            log('📄 页面加载完成');
+            initApp();
+        });
+    </script>
+</body>
+</html>

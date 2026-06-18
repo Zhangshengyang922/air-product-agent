@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API测试页面</h1>
+
+        <div class="test-section">
+            <h3>1. 健康检查</h3>
+            <button onclick="testHealth()">测试</button>
+            <div id="health-result" class="result">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 航司列表API</h3>
+            <button onclick="testAirlines()">测试</button>
+            <div id="airlines-result" class="result">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. MU产品API</h3>
+            <button onclick="testProducts()">测试</button>
+            <div id="products-result" class="result">等待测试...</div>
+        </div>
+    </div>
+
+    <script>
+        // 使用相对路径，支持局域网访问
+        const API_BASE = '/api';
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch('/');
+                const text = await response.text();
+                resultDiv.innerHTML = `<span class="success">✓ 成功!</span>\n状态码: ${response.status}\n内容长度: ${text.length}\n`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ 失败!</span>\n错误: ${error.message}\n`;
+            }
+        }
+
+        async function testAirlines() {
+            const resultDiv = document.getElementById('airlines-result');
+            resultDiv.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch(`${API_BASE}/airlines`);
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✓ 成功!</span>\n状态码: ${response.status}\n航司数: ${data.data?.count || 0}\n数据: ${JSON.stringify(data, null, 2)}\n`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ 失败!</span>\n错误: ${error.message}\n`;
+            }
+        }
+
+        async function testProducts() {
+            const resultDiv = document.getElementById('products-result');
+            resultDiv.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch(`${API_BASE}/airlines/MU`);
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✓ 成功!</span>\n状态码: ${response.status}\n产品数: ${data.data?.count || 0}\n数据: ${JSON.stringify(data, null, 2)}\n`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ 失败!</span>\n错误: ${error.message}\n`;
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = async function() {
+            console.log('页面加载完成，开始自动测试...');
+            await testHealth();
+            await testAirlines();
+            await testProducts();
+        };
+    </script>
+</body>
+</html>

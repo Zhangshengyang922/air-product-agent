@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试登录功能</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <h1>登录功能测试</h1>
+    
+    <div>
+        <h2>1. 清除所有存储</h2>
+        <button onclick="clearStorage()">清除localStorage</button>
+    </div>
+    
+    <div>
+        <h2>2. 测试登录</h2>
+        <button onclick="testLogin()">测试登录 (YNTB / yntb123)</button>
+        <button onclick="testLoginWrong()">测试错误账号</button>
+    </div>
+    
+    <div>
+        <h2>3. 查看当前Token</h2>
+        <button onclick="showToken()">查看Token</button>
+    </div>
+    
+    <div>
+        <h2>4. 测试API</h2>
+        <button onclick="testAPI()">测试访问航司列表API</button>
+    </div>
+    
+    <div>
+        <h2>5. 测试登出</h2>
+        <button onclick="testLogout()">测试登出</button>
+    </div>
+    
+    <div>
+        <h2>6. 跳转到主页</h2>
+        <button onclick="window.location.href='/'">跳转到主页</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+
+        function showResult(message) {
+            resultDiv.innerHTML = `<pre>${message}</pre>`;
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            showResult('localStorage已清除');
+        }
+
+        async function testLogin() {
+            showResult('正在登录...');
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'YNTB',
+                        password: 'yntb123'
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('authToken', data.token);
+                    showResult(`登录成功!\nToken: ${data.token}\n\n已保存到localStorage`);
+                } else {
+                    showResult(`登录失败: ${data.message}`);
+                }
+            } catch (error) {
+                showResult(`错误: ${error.message}`);
+            }
+        }
+
+        async function testLoginWrong() {
+            showResult('正在登录...');
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'wrong',
+                        password: 'wrong'
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showResult('意外成功!');
+                } else {
+                    showResult(`预期失败: ${data.message}`);
+                }
+            } catch (error) {
+                showResult(`错误: ${error.message}`);
+            }
+        }
+
+        function showToken() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                showResult(`当前Token: ${token}`);
+            } else {
+                showResult('没有Token');
+            }
+        }
+
+        async function testAPI() {
+            showResult('正在测试API...');
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                showResult('没有Token,请先登录');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/airlines', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                if (response.status === 401) {
+                    showResult('401 未授权 - Token无效或过期');
+                } else {
+                    showResult(`API调用成功!\n航司数量: ${data.data?.count || 0}`);
+                }
+            } catch (error) {
+                showResult(`错误: ${error.message}`);
+            }
+        }
+
+        async function testLogout() {
+            showResult('正在登出...');
+            try {
+                const token = localStorage.getItem('authToken');
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                localStorage.removeItem('authToken');
+                showResult('登出成功');
+            } catch (error) {
+                showResult(`错误: ${error.message}`);
+            }
+        }
+
+        // 页面加载时显示当前状态
+        window.onload = function() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                showResult(`已有Token: ${token.substring(0, 20)}...`);
+            } else {
+                showResult('当前未登录');
+            }
+        };
+    </script>
+</body>
+</html>

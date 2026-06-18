@@ -1,0 +1,84 @@
+{
+  "total_products": 211,
+  "total_airlines": 30,
+  "by_airline": {
+    "3U": 11,
+    "8L": 9,
+    "9H": 8,
+    "A6": 5,
+    "BK": 1,
+    "CA": 6,
+    "CZ": 21,
+    "DR": 3,
+    "DZ": 3,
+    "EU": 5,
+    "FU": 3,
+    "G5": 5,
+    "GJ": 7,
+    "GS": 8,
+    "GX": 6,
+    "HO": 4,
+    "HU": 18,
+    "JD": 15,
+    "JR": 2,
+    "KY": 10,
+    "MF": 7,
+    "MU": 15,
+    "NS": 6,
+    "PN": 2,
+    "QW": 3,
+    "RY": 1,
+    "SC": 5,
+    "TV": 6,
+    "UQ": 8,
+    "ZH": 8
+  },
+  "field_completeness": {
+    "product_name": {
+      "complete": 211,
+      "total": 211,
+      "percentage": 100.0
+    },
+    "route": {
+      "complete": 192,
+      "total": 211,
+      "percentage": 90.99526066350711
+    },
+    "booking_class": {
+      "complete": 199,
+      "total": 211,
+      "percentage": 94.3127962085308
+    },
+    "price": {
+      "complete": 193,
+      "total": 211,
+      "percentage": 91.4691943127962
+    },
+    "rebate": {
+      "complete": 190,
+      "total": 211,
+      "percentage": 90.04739336492891
+    },
+    "price_code": {
+      "complete": 0,
+      "total": 211,
+      "percentage": 0.0
+    },
+    "office": {
+      "complete": 98,
+      "total": 211,
+      "percentage": 46.44549763033176
+    },
+    "remarks": {
+      "complete": 161,
+      "total": 211,
+      "percentage": 76.30331753554502
+    },
+    "validity": {
+      "complete": 90,
+      "total": 211,
+      "percentage": 42.65402843601896
+    }
+  },
+  "generated_at": "2026-02-26T13:28:27.082809"
+}

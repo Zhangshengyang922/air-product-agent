@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #result {
+            background: #f5f5f5;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 应用调试页面</h1>
+
+    <div class="section">
+        <h2>1. API 测试</h2>
+        <button onclick="testHealth()">测试健康检查</button>
+        <button onclick="testAirlines()">测试航司API</button>
+        <button onclick="testAirlineProducts()">测试产品API</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. 页面诊断</h2>
+        <button onclick="checkPageStatus()">检查页面状态</button>
+        <button onclick="openMainPage()">打开主页面</button>
+    </div>
+
+    <script>
+        // 使用相对路径，支持局域网访问
+        const API_BASE = '';
+        const resultDiv = document.getElementById('result');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="${className}">[${timestamp}] ${prefix} ${message}</span>`;
+            resultDiv.appendChild(line);
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+            
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        async function testHealth() {
+            log('开始测试健康检查...');
+            try {
+                const response = await fetch(`${API_BASE}/`);
+                const text = await response.text();
+                log(`健康检查成功! 状态码: ${response.status}`, 'success');
+            } catch (error) {
+                log(`健康检查失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAirlines() {
+            log('开始测试航司API...');
+            try {
+                const response = await fetch(`${API_BASE}/api/airlines`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`航司API成功! 共 ${data.data.count} 个航司`, 'success');
+                    log(`前5个航司: ${data.data.airlines.slice(0, 5).map(a => a.code + ' ' + a.name).join(', ')}`);
+                } else {
+                    log(`航司API失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`航司API异常: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAirlineProducts() {
+            log('开始测试海南航空产品API...');
+            try {
+                const response = await fetch(`${API_BASE}/api/airlines/HU`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`产品API成功! 共 ${data.data.count} 个产品`, 'success');
+                    if (data.data.products.length > 0) {
+                        log(`第一个产品: ${data.data.products[0].product_name}`);
+                    }
+                } else {
+                    log(`产品API失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`产品API异常: ${error.message}`, 'error');
+            }
+        }
+
+        function checkPageStatus() {
+            log('检查页面状态...');
+            
+            // 检查JavaScript文件是否存在
+            log('正在检查 JavaScript 文件...');
+            
+            const checks = [
+                'app.js',
+                'index.html',
+                'app_v2.js',
+                'app_v3.js',
+                'app_v4.js'
+            ];
+            
+            checks.forEach(file => {
+                log(`检查文件: ${file}`);
+            });
+            
+            log('页面诊断完成。如果以上API测试都通过，说明后端正常。');
+            log('问题可能在于前端的JavaScript加载或执行。');
+        }
+
+        function openMainPage() {
+            window.open(`${API_BASE}/`, '_blank');
+            log('已打开主页面', 'success');
+        }
+
+        // 页面加载时自动测试
+        window.addEventListener('load', () => {
+            log('调试页面加载完成');
+            log('建议按顺序点击上面的测试按钮');
+            log('1. 先测试健康检查');
+            log('2. 再测试航司API');
+            log('3. 最后测试产品API');
+        });
+    </script>
+</body>
+</html>
