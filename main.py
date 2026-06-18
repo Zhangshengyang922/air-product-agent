@@ -413,6 +413,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <el-option label="全部Office" value=""></el-option>
                             <el-option v-for="office in officeList" :key="office" :label="office" :value="office"></el-option>
                         </el-select>
+                        <el-input v-model="policyCodeSearch" placeholder="运价代码(空格多组)" prefix-icon="el-icon-search" style="width:180px" size="small" clearable>
+                            <template slot="append" v-if="policyCodeSearch">共{{filteredProducts.length}}条</template>
+                        </el-input>
                         <el-input v-model="searchText" placeholder="搜索产品" prefix-icon="el-icon-search" style="width:180px" size="small" clearable></el-input>
                         <el-button type="success" icon="el-icon-document" size="small" @click="showViewHistory">查阅记录</el-button>
                     </div>
@@ -541,6 +544,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 filterProductType: '',
                 filterOffice: '',
                 searchText: '',
+                policyCodeSearch: '',
                 officeList: ['KMG319', 'CTU152', 'SZX146', 'KMG279'],
                 historyDialogVisible: false,
                 viewHistory: [],
@@ -554,21 +558,35 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 filteredProducts() {
                     let list = this.products;
                     if (this.filterTicketType) {
-                        list = list.filter(p => (p.ticket_type||'').toUpperCase() === this.filterTicketType);
+                        const tt = this.filterTicketType.toUpperCase();
+                        list = list.filter(p => (p.ticket_type||'').toUpperCase().includes(tt));
                     }
                     if (this.filterProductType) {
-                        list = list.filter(p => this.getProductType(p) === this.filterProductType);
+                        list = list.filter(p => this.getProductType(p).includes(this.filterProductType));
                     }
                     if (this.filterOffice) {
                         list = list.filter(p => (p.office||'').includes(this.filterOffice));
                     }
+                    if (this.policyCodeSearch) {
+                        const kw = this.policyCodeSearch.trim().toUpperCase();
+                        list = list.filter(p => {
+                            const core = (p.policy_code||'').toUpperCase().replace(/^[\\*\\/]+/, '');
+                            const fields = [core, (p.product_name||'').toUpperCase(),
+                                (p.route||'').toUpperCase(), (p.ticket_type||'').toUpperCase(),
+                                (p.airline||'').toUpperCase(), (p.office||'').toUpperCase()];
+                            return core.startsWith(kw) || fields.some(f => f.includes(kw));
+                        });
+                    }
                     if (this.searchText) {
-                        const s = this.searchText.toLowerCase();
-                        list = list.filter(p => 
-                            (p.product_name||'').toLowerCase().includes(s) ||
-                            (p.route||'').toLowerCase().includes(s) ||
-                            (p.policy_code||'').toLowerCase().includes(s)
-                        );
+                        const kw = this.searchText.trim().toLowerCase();
+                        list = list.filter(p => {
+                            const f = [p.product_name, p.route, p.policy_code, p.ticket_type, 
+                                       p.airline, p.airline_name, p.office, p.booking_class,
+                                       p.front_rebate_type, p.front_rebate_value,
+                                       p.back_rebate_type, p.back_rebate_value,
+                                       p.fixed_agent_fee, p.remarks, p.creator, p.price_increase];
+                            return f.some(v => (v||'').toString().toLowerCase().includes(kw));
+                        });
                     }
                     return list;
                 }
@@ -647,7 +665,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 },
                 async loadProducts() {
                     try {
-                        let url = `${API_BASE}/api/products`;
+                        let url = `${API_BASE}/api/products?limit=0`;
                         if (this.selectedAirline) {
                             url = `${API_BASE}/api/airlines/${this.selectedAirline}`;
                         }
@@ -770,7 +788,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 @app.head("/")
 async def index():
     """首页"""
-    return HTMLResponse(content=HTML_TEMPLATE)
+    return HTMLResponse(content=HTML_TEMPLATE, headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    })
 
 from fastapi import Request
 
@@ -821,7 +843,7 @@ async def get_products_by_airline(airline_code: str):
 @app.get("/api/products", response_model=ProductsResponse)
 async def get_all_products(
     airline: Optional[str] = Query(None, description="航司代码"),
-    limit: int = Query(100, description="返回数量限制")
+    limit: int = Query(0, description="返回数量限制，0=不限制")
 ):
     """获取所有产品（无需认证）- 按原始顺序"""
     filtered_products = products

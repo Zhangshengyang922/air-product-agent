@@ -99,6 +99,9 @@
                             <el-option label="全部政策" value=""></el-option>
                             <el-option v-for="level in vipPolicyLevels" :key="level" :label="level" :value="level"></el-option>
                         </el-select>
+                        <el-input v-model="policyCodeSearch" placeholder="运价代码(空格多组)" prefix-icon="el-icon-search" style="width:180px" size="small" clearable>
+                            <template slot="append" v-if="policyCodeSearch">共{{filteredProducts.length}}条</template>
+                        </el-input>
                         <el-input v-model="searchText" placeholder="搜索产品" prefix-icon="el-icon-search" style="width:180px" size="small" clearable></el-input>
                     </div>
                 </div>
@@ -187,16 +190,18 @@
                 vipPolicyLevels: [],
                 vipPolicies: [],
                 searchText: '',
+                policyCodeSearch: '',
                 officeList: ['KMG319', 'CTU152', 'SZX146', 'KMG279']
             },
             computed: {
                 filteredProducts() {
                     let list = this.products;
                     if (this.filterTicketType) {
-                        list = list.filter(p => (p.ticket_type||'').toUpperCase() === this.filterTicketType);
+                        const tt = this.filterTicketType.toUpperCase();
+                        list = list.filter(p => (p.ticket_type||'').toUpperCase().includes(tt));
                     }
                     if (this.filterProductType) {
-                        list = list.filter(p => this.getProductType(p) === this.filterProductType);
+                        list = list.filter(p => this.getProductType(p).includes(this.filterProductType));
                     }
                     if (this.filterOffice) {
                         list = list.filter(p => (p.office||'').includes(this.filterOffice));
@@ -211,18 +216,36 @@
                             return this.vipPolicies.some(policy => 
                                 policy.airline === airline && 
                                 policy.office && office.includes(policy.office) &&
-                                policy.policy_level === policyLevel
+                                (policy.policy_level||'').includes(policyLevel)
                             );
                         });
                     }
-                    if (this.searchText) {
-                        const s = this.searchText.toLowerCase();
-                        list = list.filter(p => 
-                            (p.product_name||'').toLowerCase().includes(s) ||
-                            (p.route||'').toLowerCase().includes(s) ||
-                            (p.policy_code||'').toLowerCase().includes(s)
-                        );
+                    if (this.policyCodeSearch) {
+                        const kw = this.policyCodeSearch.trim().toUpperCase();
+                        list = list.filter(p => {
+                            const core = (p.policy_code||'').toUpperCase().replace(/^[\*\/]+/, '');
+                            const fields = [core, (p.product_name||'').toUpperCase(),
+                                (p.route||'').toUpperCase(), (p.ticket_type||'').toUpperCase(),
+                                (p.airline||'').toUpperCase(), (p.office||'').toUpperCase()];
+                            // 匹配核心运价码(前缀已剥离) + 多字段模糊
+                            return core.startsWith(kw) || fields.some(f => f.includes(kw));
+                        });
                     }
+                    if (this.searchText) {
+                        const kw = this.searchText.trim().toLowerCase();
+                        list = list.filter(p => {
+                            const f = [p.product_name, p.route, p.policy_code, p.ticket_type, 
+                                       p.airline, p.airline_name, p.office, p.booking_class,
+                                       p.front_rebate_type, p.front_rebate_value,
+                                       p.back_rebate_type, p.back_rebate_value,
+                                       p.fixed_agent_fee, p.remarks, p.creator, p.price_increase];
+                            return f.some(v => (v||'').toString().toLowerCase().includes(kw));
+                        });
+                    }
+                    console.log('[DEBUG] filteredProducts - policyCodeSearch:', JSON.stringify(this.policyCodeSearch), 
+                        'searchText:', JSON.stringify(this.searchText),
+                        'total products:', this.products.length,
+                        'filtered result:', list.length);
                     return list;
                 }
             },
@@ -300,7 +323,7 @@
                 },
                 async loadProducts() {
                     try {
-                        let url = `${API_BASE}/api/products`;
+                        let url = `${API_BASE}/api/products?limit=0`;
                         if (this.selectedAirline) {
                             url = `${API_BASE}/api/airlines/${this.selectedAirline}`;
                         }
