@@ -10,44 +10,49 @@ cd /d "%~dp0"
 REM ========================================
 REM 检查管理员权限并自动添加防火墙规则
 REM ========================================
-echo [检查] 正在配置Windows防火墙规则...
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [提示] 未以管理员身份运行，尝试添加防火墙规则...
-    powershell -Command "Start-Process -FilePath '%0' -Verb RunAs -WindowStyle Normal" 2>nul
-    if %errorlevel% equ 0 (
-        echo [提示] 正在请求管理员权限，请在弹出的窗口中确认...
-        exit /b
-    )
-    echo [警告] 无法获取管理员权限，防火墙规则可能未生效
-    echo [警告] 如果局域网访问失败，请右键以管理员身份运行此脚本
+echo [防火墙] 正在配置...
+REM 先尝试直接添加（可能已提权），失败再用提权方式
+netsh advfirewall firewall add rule name="航空产品管理系统(TCP-8000)" dir=in action=allow protocol=TCP localport=8000 >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [OK] 防火墙规则已就绪
 ) else (
-    echo [管理员] 正在添加防火墙规则...
-    netsh advfirewall firewall add rule name="航空产品管理系统(TCP-8000)" dir=in action=allow protocol=TCP localport=8000 >nul 2>&1
-    if %errorlevel% equ 0 (
-        echo [OK] 防火墙规则已添加/已存在
+    echo [提示] 需要管理员权限来配置防火墙...
+    powershell -Command "Start-Process netsh -ArgumentList 'advfirewall firewall add rule name=\"航空产品管理系统(TCP-8000)\" dir=in action=allow protocol=TCP localport=8000' -Verb RunAs -Wait -WindowStyle Hidden" 2>nul
+    if exist "%windir%\system32\netsh.exe" (
+        netsh advfirewall firewall show rule name="航空产品管理系统(TCP-8000)" >nul 2>&1
+        if !errorlevel! equ 0 (echo [OK] 防火墙规则已就绪) else (echo [警告] 防火墙规则添加失败，局域网可能无法访问)
     ) else (
-        echo [提示] 防火墙规则无需重复添加
+        echo [跳过] 无法配置防火墙
     )
 )
 
 echo.
 
 REM ========================================
-REM 获取本机局域网IP (使用PowerShell，语言无关)
+REM 获取真实物理网卡IP（排除虚拟网卡、VPN、Hyper-V等）
 REM ========================================
-echo 正在获取本机局域网IP地址...
+echo 正在检测本机局域网IP...
 setlocal enabledelayedexpansion
 set "LAN_IP=未检测到"
 
+REM 方法：优先用 Get-NetIPAddress 过滤出物理网卡的 DHCP IP
 for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -Command ^
-    "Get-NetIPAddress -AddressFamily IPv4 ^| Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Virtual|VMnet|vEthernet|Bluetooth|Hyper-V|WSL' -and $_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown' } ^| Select-Object -First 1 -ExpandProperty IPAddress" 2^>nul`) do (
+    "$ips = Get-NetIPAddress -AddressFamily IPv4 ^| Where-Object { $_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -eq 'Dhcp' -and $_.AddressState -eq 'Preferred' -and $_.InterfaceAlias -notmatch 'VPN|vpn|Virtual|VMnet|vEthernet|Hyper-V|WSL|Loopback|Bluetooth|Teredo|Tunnel|ISATAP|6to4|teredo' }; $ips ^| Select-Object -First 1 -ExpandProperty IPAddress" 2^>nul`) do (
     set "LAN_IP=%%i"
 )
 
-REM 如果PowerShell方法失败，回退到ipconfig方法
+REM 回退：从ipconfig中提取
 if "%LAN_IP%"=="未检测到" (
-    for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /r "IPv4.*[0-9]"') do (
+    for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /r "192\.168\..*\.[0-9]"') do (
+        set "ip=%%a"
+        set "ip=!ip: =!"
+        if not "!ip!"=="" if not "!ip!"=="127.0.0.1" set "LAN_IP=!ip!"
+    )
+)
+
+REM 如果还是没有，再试 10.x 网段
+if "%LAN_IP%"=="未检测到" (
+    for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /r "10\..*\..*\.[0-9]"') do (
         set "ip=%%a"
         set "ip=!ip: =!"
         if not "!ip!"=="" if not "!ip!"=="127.0.0.1" set "LAN_IP=!ip!"
