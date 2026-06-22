@@ -787,14 +787,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 @app.get("/")
 @app.head("/")
 async def index():
-    """首页 - 优先使用 index_v4.html"""
-    # 尝试加载最新版本首页
-    v4_file = static_path / "index_v4.html"
+    """首页"""
     index_file = static_path / "index.html"
     
-    if v4_file.exists():
-        content = v4_file.read_text(encoding='utf-8')
-    elif index_file.exists():
+    if index_file.exists():
         content = index_file.read_text(encoding='utf-8')
     else:
         # 回退到内嵌模板

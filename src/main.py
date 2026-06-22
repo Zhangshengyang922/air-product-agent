@@ -338,12 +338,9 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 # 主页路由 - 需要登录
 @app.get("/")
 async def root(request: Request):
-    """主页,直接返回主页HTML,由前端JavaScript检查登录状态 - 优先使用index_v4.html"""
-    v4_file = static_dir / "index_v4.html"
+    """主页,直接返回主页HTML,由前端JavaScript检查登录状态"""
     index_file = static_dir / "index.html"
-    if v4_file.exists():
-        return FileResponse(str(v4_file))
-    elif index_file.exists():
+    if index_file.exists():
         return FileResponse(str(index_file))
     else:
         return {"message": "Airline Product System", "status": "running"}
